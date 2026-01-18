@@ -36,8 +36,28 @@ export interface StockWidgetData {
   symbol: string;
 }
 
+export interface SlideChart {
+  type: 'bar';
+  data: { label: string; value: number }[];
+  title?: string;
+  xAxisLabel?: string;
+  yAxisLabel?: string;
+}
+
+export interface Slide {
+  title: string;
+  content: string[];
+  chart?: SlideChart;
+  image?: string; // Image URL for the slide
+}
+
+export interface SlidesWidgetData {
+  title: string;
+  slides: Slide[];
+}
+
 export interface WidgetData {
-  type: 'time' | 'weather' | 'stock';
+  type: 'time' | 'weather' | 'stock' | 'slides';
   data: any; 
 }
 

@@ -1,56 +1,52 @@
 import { SearchResult } from "../types";
 
 const TAVILY_API_KEY = "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";
-const OLLAMA_API_KEY = "b5bbc8deeef54c5bbd5700d88a2bf8c1.uOWGnsg4JUxbZPUrc90pLGBv";
 
-// NOTE: If you have Google Custom Search JSON API keys, you can replace the implementation below.
-// Currently configured to "only use Tavily" as requested.
-
-export const searchOllama = async (query: string): Promise<{ results: SearchResult[]; images: string[] }> => {
+// Using Tavily basic search for "Fast" mode as it's reliable and quick
+export const searchFast = async (query: string): Promise<{ results: SearchResult[]; images: string[] }> => {
   try {
-    const response = await fetch("https://ollama.com/api/web_search", {
+    const response = await fetch("https://api.tavily.com/search", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OLLAMA_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        api_key: TAVILY_API_KEY,
         query: query,
-        max_results: 10
+        search_depth: "basic", // Basic is faster than advanced
+        max_results: 5,
+        include_images: false,
+        include_answer: false
       }),
     });
 
     if (!response.ok) {
-      // Fallback to empty if API fails
-      console.warn(`Ollama API Error: ${response.status}`);
-      return { results: [], images: [] };
+       return { results: [], images: [] };
     }
 
     const data = await response.json();
     
-    // Map Ollama results to our SearchResult interface
-    const results = (data.results || []).map((item: any) => {
-        let hostname = 'Ollama Search';
-        try {
-            hostname = new URL(item.url).hostname;
-        } catch (e) {}
-
+    const results = data.results?.map((item: any) => {
+        let hostname = 'Source';
+        try { hostname = new URL(item.url).hostname; } catch (e) {}
         return {
             title: item.title,
             link: item.url,
             snippet: item.content,
             displayLink: hostname,
-            publishedDate: undefined // Ollama API response doesn't strictly provide date in basic format
         };
-    });
+    }) || [];
 
     return { results, images: [] };
 
   } catch (error) {
-    console.error("Ollama Search Error:", error);
+    console.error("Fast Search Error:", error);
     return { results: [], images: [] };
   }
 };
+
+// Kept for compatibility but points to the optimized fast search
+export const searchOllama = searchFast;
 
 export const searchWeb = async (query: string, mode: string = 'web'): Promise<{ results: SearchResult[]; images: string[] }> => {
   try {
@@ -58,7 +54,7 @@ export const searchWeb = async (query: string, mode: string = 'web'): Promise<{ 
     let topic = "general";
     let searchDepth = "basic";
 
-    // Mode handling
+    // Mode handling for special cases only
     if (mode === 'x') {
       includeDomains = ['twitter.com', 'x.com'];
     } else if (mode === 'reddit') {
@@ -82,9 +78,9 @@ export const searchWeb = async (query: string, mode: string = 'web'): Promise<{ 
         api_key: TAVILY_API_KEY,
         query: searchString,
         search_depth: searchDepth,
-        include_images: true,
+        include_images: true, // Always include images for universal mode
         include_answer: false,
-        max_results: 10, // Increased to 10 to ensure ~25 unique sources across 5 queries
+        max_results: 10, 
         include_domains: includeDomains,
         topic: topic
       }),
@@ -114,9 +110,6 @@ export const searchWeb = async (query: string, mode: string = 'web'): Promise<{ 
         publishedDate: item.published_date || undefined
       };
     }) || [];
-
-    // Filter out very short snippets or irrelevant results if needed
-    // For now, we return all robust results from Tavily
 
     return { results, images: globalImages };
 

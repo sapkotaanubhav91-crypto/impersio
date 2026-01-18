@@ -19,6 +19,18 @@ const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() || "dummy_key" }
 const OPENROUTER_API_KEY = "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";
 const GROQ_API_KEY = "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";
 
+// Fast heuristic generation to meet 0.10s requirement
+export const generateManualQueries = (prompt: string): string[] => {
+    const base = prompt.trim();
+    return [
+        base,                                      // Original intent
+        `${base} latest news updates`,            // Recency
+        `${base} detailed analysis statistics`,   // Data for slides
+        `${base} key features and benefits`,      // Structure
+        `${base} future roadmap`                  // Forward looking
+    ];
+};
+
 export const generateSearchQueries = async (prompt: string): Promise<string[]> => {
   try {
     const ai = getAiClient();
@@ -83,18 +95,16 @@ export const streamResponse = async (
 
     const capabilitiesText = `
     CAPABILITIES & FEATURES:
-      1. **Search Modes**: You can search the Web, X (Twitter), Reddit, Videos, and perform "Deep Research" or "Fact Checks".
+      1. **Universal Search**: You are an all-in-one AI. You can browse the web, analyze images, summarize YouTube videos (using search results), and generate content.
       2. **Widgets**: You can render interactive cards.
          - Weather: For forecasts (Trigger: ///WEATHER: Location///).
          - Stocks: For market data (Trigger: ///STOCK: Symbol///).
          - Time: For world clocks (Trigger: ///TIME: ...///).
-      3. **Multi-Model**: You are powered by a swarm of models (Gemini, Llama, Qwen, etc.).
-      4. **Multimodal**: You can see and analyze user-uploaded images.
-      5. **Privacy-Focused**: You provide direct answers without tracking.
-      6. **Device Awareness**: You are currently running on a ${isMobile ? 'Mobile Device' : 'Desktop Computer'}. Adjust your response format for optimal reading on this screen size.
+         - Slides: For presentations (Trigger: ///SLIDES: {json}///).
+      3. **Presentation Generator**: If the user asks for a presentation, deck, or slides (e.g. "Create a PPT about X"), you MUST generate a ///SLIDES/// widget.
+      4. **YouTube Summarizer**: If the user provides a YouTube URL or asks for a video summary, use the provided search context to summarize the video content.
     `;
     
-    // Formatting instructions mimicking Perplexity style
     const formattingRules = `
     FORMATTING RULES (CRITICAL):
     You are Impersio, a minimalist AI search engine.
@@ -102,8 +112,6 @@ export const streamResponse = async (
     OUTPUT STRUCTURE:
     - **Length**: Target 15-25 lines of concise, scannable text (300-500 words).
     - **Tables**: USE MARKDOWN TABLES for comparisons, itineraries, lists of options, or pros/cons.
-      - Example: | Day | Activity | Location |
-      - Example: | Feature | Option A | Option B |
     - **Tone**: Objective, professional, and dense. Avoid conversational filler.
     - **Citations**: Use inline [1] citations.
     
@@ -113,11 +121,11 @@ export const streamResponse = async (
     3. Key Details / Nuances (Bulleted list).
     `;
 
-    // Optimization: Shorter system prompt for lower latency
+    // System prompt construction
     if (searchResults.length > 0) {
       // RAG MODE
       const contextString = searchResults.map((result, index) => 
-        `[${index + 1}] ${result.title} (${result.link}): ${result.snippet}`
+        `[${index + 1}] ${result.title} (${result.link}): ${result.snippet} [Image: ${result.image || 'None'}]`
       ).join("\n\n");
 
       systemInstruction = `You are Impersio, a minimalist AI search engine. Current Time: ${currentDate}
@@ -129,10 +137,20 @@ export const streamResponse = async (
 
       RULES:
       1. Cite sources inline like [1].
-      2. WIDGETS: DO NOT generate a widget unless explicitly asked. Use these formats at the START of your response ONLY if the user explicitly asks for time, weather, or stock prices:
+      2. WIDGETS: Detect intent automatically. Use these formats at the START of your response:
          - Time: ///TIME: HH:MM AM/PM | Weekday, Month DD, YYYY | Location | (Offset)///
-         - Weather: ///WEATHER: Location/// (e.g., ///WEATHER: Paris, France///)
-         - Stock/Crypto Price/Chart: ///STOCK: Symbol/// (e.g., ///STOCK: AAPL/// or ///STOCK: BTC-USD///). Use standard tickers.
+         - Weather: ///WEATHER: Location///
+         - Stock: ///STOCK: Symbol///
+         
+         - **SLIDES (IMPORTANT)**: If the user asks for a presentation/slides:
+           a) Generate a valid JSON object for ///SLIDES///.
+           b) **CONTENT QUALITY**: The content MUST NOT look like generic AI output. Use professional business language, specific data points, dates, and names from the context.
+           c) **DETAIL**: Each slide must have 4-6 detailed bullet points.
+           d) **IMAGES**: Use the image URLs provided in the context if relevant.
+           e) **TEXT RESPONSE**: If you generate slides, keep your normal text response VERY BRIEF (2 sentences max) just to introduce the slides. Do NOT repeat the content.
+           
+           Format: ///SLIDES: {"title": "Professional Title", "slides": [{"title": "Specific Slide Title", "content": ["Detailed point 1 with data", "Detailed point 2"], "image": "URL_FROM_CONTEXT_OR_NONE"}, {"title": "Data Slide", "content": ["Analysis point"], "chart": {"type": "bar", "title": "Chart Title", "data": [{"label": "A", "value": 10}, {"label": "B", "value": 20}]}}]}///
+
       3. RELATED QUESTIONS: At the very end of your response, strictly generate 3 related follow-up questions in this format: ///RELATED: ["Question 1", "Question 2", "Question 3"]///
       ${isReasoningEnabled ? '4. REASONING: The user has requested "Deep Reasoning". Think step-by-step, analyze conflicts in data, and provide a comprehensive, logic-driven answer.' : ''}
       
@@ -148,10 +166,9 @@ export const streamResponse = async (
       ${formattingRules}
       
       RULES:
-      1. WIDGETS: DO NOT generate a widget unless explicitly asked. Use these formats at the START of your response ONLY if the user explicitly asks for time, weather, or stock prices:
-         - Time: ///TIME: HH:MM AM/PM | Weekday, Month DD, YYYY | Location | (Offset)///
-         - Weather: ///WEATHER: Location///
-         - Stock/Crypto Price/Chart: ///STOCK: Symbol///
+      1. WIDGETS: Detect intent automatically. Use these formats at the START of your response if needed:
+         - Time, Weather, Stock as defined above.
+         - Slides: ///SLIDES: {"title": "Title", "slides": [{"title": "Slide 1", "content": ["Point 1", "Point 2"], "image": "Optional URL"}]}///
       2. RELATED QUESTIONS: At the very end of your response, strictly generate 3 related follow-up questions in this format: ///RELATED: ["Question 1", "Question 2", "Question 3"]///
       ${isReasoningEnabled ? '3. REASONING: The user has requested "Deep Reasoning". Think step-by-step and provide a comprehensive, logic-driven answer.' : ''}`;
     }
@@ -208,6 +225,18 @@ export const streamResponse = async (
                   };
                   capturedWidget = wData;
                   onWidget(wData);
+              } else if (type === 'SLIDES') {
+                  try {
+                      const slidesData = JSON.parse(content);
+                      const wData: WidgetData = {
+                          type: 'slides',
+                          data: slidesData
+                      };
+                      capturedWidget = wData;
+                      onWidget(wData);
+                  } catch (e) {
+                      console.error("Failed to parse slides JSON", e);
+                  }
               }
               widgetParsed = true;
           }
@@ -215,10 +244,9 @@ export const streamResponse = async (
       }
 
       // 2. Handle Related Questions (End of stream)
-      // Check if related tag exists in the buffer
       const relatedStartIndex = fullStreamText.indexOf("///RELATED:");
       if (!relatedParsed && relatedStartIndex !== -1) {
-          const relatedEndIndex = fullStreamText.indexOf("///", relatedStartIndex + 11); // 11 is length of "///RELATED:"
+          const relatedEndIndex = fullStreamText.indexOf("///", relatedStartIndex + 11);
           
           if (relatedEndIndex !== -1) {
               const jsonStr = fullStreamText.substring(relatedStartIndex + 11, relatedEndIndex).trim();
@@ -261,10 +289,8 @@ export const streamResponse = async (
     // Function to handle stream completion
     const finishStream = () => {
         if (onComplete) {
-            // Clean up the full text for storage similar to how we display it
             let finalText = fullStreamText;
             
-            // Remove widget tag
             if (finalText.startsWith("///")) {
                 const endTagIndex = finalText.indexOf("///", 3);
                 if (endTagIndex !== -1) {
@@ -272,7 +298,6 @@ export const streamResponse = async (
                 }
             }
             
-            // Remove related tag
             const relIndex = finalText.indexOf("///RELATED:");
             if (relIndex !== -1) {
                 finalText = finalText.substring(0, relIndex).trimEnd();

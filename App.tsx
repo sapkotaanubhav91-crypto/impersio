@@ -15,10 +15,13 @@ import {
   Menu,
   Check,
   X,
-  Zap
+  Zap,
+  Loader2,
+  Image as ImageIcon,
+  Presentation
 } from 'lucide-react';
-import { streamResponse, generateSearchQueries } from './services/geminiService';
-import { searchWeb, searchOllama } from './services/googleSearchService';
+import { streamResponse, generateSearchQueries, generateManualQueries } from './services/geminiService';
+import { searchWeb, searchFast } from './services/googleSearchService';
 import { createConversation, saveMessage, getConversationMessages } from './services/chatStorageService';
 import { supabase } from './services/supabaseClient';
 import { Message, SearchResult, WidgetData } from './types';
@@ -27,7 +30,8 @@ import { About } from './components/About';
 import { TimeWidget } from './components/TimeWidget';
 import { StockWidget } from './components/StockWidget';
 import { WeatherWidget } from './components/WeatherWidget';
-import { SearchModes } from './components/SearchModes';
+import { SlidesWidget } from './components/SlidesWidget';
+// Removed SearchModes import as user requested "mix it all together"
 import { AuthModal } from './components/AuthModal';
 import { HistorySidebar } from './components/HistorySidebar';
 import { MessageContent } from './components/MessageContent';
@@ -50,11 +54,6 @@ const MODEL_OPTIONS = [
   { id: 'kimi-k2', name: 'Kimi K2', icon: KimiIcon },
   { id: 'qwen-3-32b', name: 'Qwen 3', icon: QwenIcon },
   { id: 'mimo-v2-flash', name: 'Mimo V2 Flash', icon: MimoIcon },
-];
-
-const SEARCH_MODES = [
-    { id: 'web', label: 'Web', icon: Globe },
-    // ... others handled in SearchModes.tsx
 ];
 
 // Updated Regex to include feature/capability questions so they don't trigger a web search
@@ -134,7 +133,7 @@ const SourcesGrid = ({ sources }: { sources: SearchResult[] }) => {
 
 export default function App() {
   const [query, setQuery] = useState('');
-  const [activeMode, setActiveMode] = useState<string>('web');
+  const [activeMode, setActiveMode] = useState<string>('auto'); // Default to auto/universal
   const [selectedModel, setSelectedModel] = useState(MODEL_OPTIONS[0]);
   const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
   const [isReasoningEnabled, setIsReasoningEnabled] = useState(false);
@@ -144,6 +143,7 @@ export default function App() {
   const [searchStatus, setSearchStatus] = useState<string>(''); // For granular status updates
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [currentTitle, setCurrentTitle] = useState("New Search");
   const [view, setView] = useState<'home' | 'discover' | 'about'>('home');
@@ -211,8 +211,15 @@ export default function App() {
     }
   }, [query]);
 
+  // Scroll to bottom when messages update
+  useEffect(() => {
+    if (messagesEndRef.current) {
+        messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isLoading, isSearching]);
+
   const shouldSearchWeb = (query: string, mode: string | null): boolean => {
-    if (mode && mode !== 'web' && mode !== 'fast') return true;
+    if (mode && mode !== 'web' && mode !== 'fast' && mode !== 'auto') return true;
     if (SKIP_SEARCH_REGEX.test(query.trim())) return false;
     if (query.trim().length < 2) return false;
     return true;
@@ -276,73 +283,50 @@ export default function App() {
 
       if (needsSearch) {
         setIsSearching(true);
-        setSearchStatus(activeMode === 'fast' ? 'Ollama Fast Search...' : 'Searching web...');
+        // Default to fast search first
+        setSearchStatus('Searching...');
         
-        // --- FAST RAG MODE ---
-        if (activeMode === 'fast') {
-            // Skip the generation step, invoke Ollama directly
-            const { results } = await searchOllama(finalQuery);
-            searchResults = results;
-            // No images from Ollama usually, but structure supports it
-            
-            setIsSearching(false);
-            setSearchStatus('');
+        // --- MIXED MODE / UNIVERSAL ---
+        // If query implies presentation/slides, we still do web search to gather data
+        // If query implies fast fact, we do fast search
+        
+        // Heuristic: Short queries or simple facts -> Fast. Complex/Research -> Web.
+        const isComplex = finalQuery.split(' ').length > 8 || finalQuery.toLowerCase().includes('report') || finalQuery.toLowerCase().includes('analysis');
 
-        } else if (activeMode === 'web') {
-            // --- STANDARD WEB (FAST) ---
-            // Skip query generation for standard web search to reduce latency < 2s
-            const { results, images } = await searchWeb(finalQuery, 'web');
-            searchResults = results;
-            searchImages = images;
-
-            setIsSearching(false);
-            setSearchStatus('');
+        if (!isComplex && activeMode === 'auto') {
+             // Optimized fast path
+             const { results, images } = await searchFast(finalQuery);
+             searchResults = results;
+             searchImages = images;
         } else {
-            // --- DEEP / RESEARCH / OTHERS ---
-            // 1. Generate Multiple Queries (Deep Search) only if strictly needed
-            let queriesToRun = [finalQuery];
-            
-            // Only generate queries for 'research' mode to save time on others
-            if (activeMode === 'research') {
-                try {
-                    setSearchStatus('Planning research...');
-                    const generatedQueries = await generateSearchQueries(finalQuery);
-                    if (generatedQueries.length > 0) {
-                        queriesToRun = generatedQueries;
-                    }
-                } catch (err) {
-                    console.warn("Failed to generate queries, falling back to simple search");
-                }
-            }
-
-            setSearchStatus(activeMode === 'research' ? `Analyzing ${queriesToRun.length * 5} sources...` : 'Searching...');
-            
-            // 2. Run searches in parallel (using Tavily/Google)
-            const searchPromises = queriesToRun.map(q => searchWeb(q, activeMode));
-            const resultsArray = await Promise.all(searchPromises);
-            
-            // 3. Aggregate Results
-            const allResults: SearchResult[] = [];
-            const seenLinks = new Set<string>();
-            const allImages: string[] = [];
-
-            resultsArray.forEach(res => {
-                if (res.images) allImages.push(...res.images);
-                res.results.forEach(item => {
-                    if (!seenLinks.has(item.link)) {
-                        seenLinks.add(item.link);
-                        allResults.push(item);
-                    }
-                });
-            });
-
-            // Limit context size (Top 25 results = 5 queries * ~5 sources)
-            searchResults = allResults.slice(0, 25);
-            searchImages = [...new Set(allImages)]; // Simple dedup for images
-            
-            setIsSearching(false);
-            setSearchStatus('');
+             // Full Web Search (Includes images by default)
+             const queriesToRun = generateManualQueries(finalQuery);
+             setSearchStatus(`Scanning sources...`);
+             
+             // Run searches in parallel (limited to 3 for speed)
+             const searchPromises = queriesToRun.slice(0, 3).map(q => searchWeb(q, 'web'));
+             const resultsArray = await Promise.all(searchPromises);
+             
+             const allResults: SearchResult[] = [];
+             const seenLinks = new Set<string>();
+             const allImages: string[] = [];
+ 
+             resultsArray.forEach(res => {
+                 if (res.images) allImages.push(...res.images);
+                 res.results.forEach(item => {
+                     if (!seenLinks.has(item.link)) {
+                         seenLinks.add(item.link);
+                         allResults.push(item);
+                     }
+                 });
+             });
+ 
+             searchResults = allResults.slice(0, 20);
+             searchImages = [...new Set(allImages)]; 
         }
+
+        setIsSearching(false);
+        setSearchStatus('');
       }
 
       setMessages(prev => [...prev, { 
@@ -358,7 +342,7 @@ export default function App() {
         searchResults,
         currentAttachments,
         isReasoningEnabled,
-        isMobile, // Pass mobile state to AI
+        isMobile, 
         (chunkText) => {
           setMessages(prev => {
             const newMessages = [...prev];
@@ -389,7 +373,6 @@ export default function App() {
                 return newMessages;
             });
         },
-        // onComplete callback to save to Supabase
         async (fullContent, widget, relatedQuestions) => {
             if (currentConversationId) {
                 await saveMessage(currentConversationId, 'assistant', fullContent, {
@@ -593,20 +576,6 @@ export default function App() {
 
           <div className="flex items-center justify-between px-2 pb-1 pt-0">
             <div className="flex items-center gap-1 md:gap-2">
-               {/* Globe / Scope Dropdown */}
-               <div className="relative">
-                 <button 
-                    className="p-1.5 text-muted hover:text-scira-accent bg-transparent hover:bg-scira-accent/10 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-1.5 group"
-                    title="Search Scope"
-                 >
-                    {activeMode === 'fast' ? <Zap className="w-4 h-4 text-scira-accent" /> : <Globe className="w-4 h-4" />}
-                    {!isMobile && <span className="text-xs font-medium opacity-70 group-hover:opacity-100 group-hover:text-scira-accent">
-                        {activeMode === 'fast' ? 'Fast RAG' : 'Web'}
-                    </span>}
-                    <ChevronDown className="w-3 h-3 opacity-50 group-hover:text-scira-accent" />
-                 </button>
-               </div>
-
                {/* Reasoning Toggle */}
                <button 
                  onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
@@ -689,152 +658,174 @@ export default function App() {
     </div>
   );
 
-  if (view === 'discover') {
-    return <Discover onBack={() => setView('home')} />;
-  }
-
-  if (view === 'about') {
-    return <About onBack={() => setView('home')} />;
-  }
-
   return (
-    <div className="min-h-screen bg-background text-primary flex flex-col font-sans relative transition-colors duration-300">
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-      <HistorySidebar 
-        isOpen={isHistoryOpen} 
-        onClose={() => setIsHistoryOpen(false)} 
+    <div className={`min-h-screen bg-background text-primary font-sans selection:bg-scira-accent/20 flex flex-col ${isMobile ? 'pb-20' : ''}`}>
+      
+      {renderHeader(hasSearched)}
+
+      <HistorySidebar
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
         onSelectChat={loadConversation}
         onNewChat={handleNewChat}
         userId={user?.id}
-        onSignIn={() => setIsAuthModalOpen(true)}
-        onOpenAbout={() => setView('about')}
+        onSignIn={() => {
+            setIsHistoryOpen(false);
+            setIsAuthModalOpen(true);
+        }}
+        onOpenAbout={() => {
+            setIsHistoryOpen(false);
+            setView('about');
+        }}
       />
 
-      {!hasSearched ? (
-        <main className={`flex-1 flex flex-col items-center justify-center px-4 ${isMobile ? '-mt-4' : '-mt-16'}`}>
-          {/* Minimal Floating Header for Home (Menu + Sign In) */}
-          {renderHeader(false)}
-          
-          <div className="mb-10 animate-fade-in">
-             <ImpersioLogo isMobile={isMobile} />
-          </div>
-          
-          {renderInputBar(true)}
-          
-          {/* Search Modes Row - Below Input */}
-          <div className="mt-4 w-full max-w-2xl overflow-x-auto no-scrollbar">
-             <SearchModes activeMode={activeMode} onSelect={setActiveMode} />
-          </div>
+      <AuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+      />
 
-        </main>
-      ) : (
-        <div className="flex flex-col h-screen relative">
-          {/* Minimal Floating Header for Chat (Menu + Small Logo + Sign In) */}
-          {renderHeader(true)}
+      {view === 'discover' && <Discover onBack={() => setView('home')} />}
+      
+      {view === 'about' && <About onBack={() => setView('home')} />}
 
-          <div className="flex-1 overflow-y-auto px-4 scroll-smooth">
-             <div className="max-w-3xl mx-auto pb-40 pt-16">
-                {messages.map((msg, idx) => (
-                  <div key={idx} className="animate-fade-in mb-10">
-                    {msg.role === 'user' ? (
-                       <div className="mb-6 mt-4">
-                          <h2 className="text-3xl font-medium text-primary tracking-tight leading-tight">{msg.content}</h2>
-                          {msg.images && msg.images.length > 0 && (
-                            <div className="flex gap-2 mt-4 overflow-x-auto pb-2">
-                                {msg.images.map((img, i) => (
-                                    <div key={i} className="flex-none w-32 h-32 rounded-xl overflow-hidden border border-border transition-transform hover:scale-105">
-                                        <img src={img} alt="User upload" className="w-full h-full object-cover" />
+      {view === 'home' && (
+          <main className="flex-1 w-full max-w-5xl mx-auto px-4 relative flex flex-col min-h-0">
+            {!hasSearched ? (
+              // Initial State
+              <div className="flex-1 flex flex-col items-center justify-center -mt-20">
+                  <div className="mb-8 animate-fade-in-down">
+                    <ImpersioLogo isMobile={isMobile} />
+                  </div>
+                  
+                  {renderInputBar(true)}
+                  
+                  <div className="mt-12 flex gap-6 text-sm text-muted">
+                    <button onClick={() => setView('discover')} className="hover:text-primary transition-colors">Discover</button>
+                    <button onClick={() => setView('about')} className="hover:text-primary transition-colors">About</button>
+                  </div>
+              </div>
+            ) : (
+              // Chat State
+              <div className="flex-1 flex flex-col pb-40 pt-20">
+                  <div className="flex flex-col gap-10"> 
+                    {messages.map((msg, idx) => (
+                        <div key={idx} className={`animate-fade-in flex flex-col gap-4 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                          
+                          {msg.role === 'user' ? (
+                              <div className="text-2xl md:text-3xl font-medium text-primary tracking-tight max-w-3xl text-right">
+                                {msg.content}
+                                {msg.images && msg.images.length > 0 && (
+                                    <div className="flex gap-2 justify-end mt-2">
+                                      {msg.images.map((img, i) => (
+                                        <img key={i} src={img} className="h-16 w-16 rounded-lg object-cover border border-border" />
+                                      ))}
                                     </div>
-                                ))}
-                            </div>
-                          )}
-                       </div>
-                    ) : (
-                       <div className="space-y-8">
-                          {/* Widgets */}
-                          {msg.widget && (
-                             <div className="animate-fade-in">
-                                {msg.widget.type === 'time' && <TimeWidget data={msg.widget.data} />}
-                                {msg.widget.type === 'stock' && <StockWidget data={msg.widget.data} />}
-                                {msg.widget.type === 'weather' && <WeatherWidget data={msg.widget.data} />}
-                             </div>
-                          )}
+                                )}
+                              </div>
+                          ) : (
+                              <div className="w-full max-w-3xl">
+                                {msg.widget && (
+                                    <div className="mb-6">
+                                      {msg.widget.type === 'time' && <TimeWidget data={msg.widget.data} />}
+                                      {msg.widget.type === 'weather' && <WeatherWidget data={msg.widget.data} />}
+                                      {msg.widget.type === 'stock' && <StockWidget data={msg.widget.data} />}
+                                      {msg.widget.type === 'slides' && <SlidesWidget data={msg.widget.data} />}
+                                    </div>
+                                )}
 
-                          {/* Assistant Response Images (Search results) */}
-                          {msg.images && msg.images.length > 0 && (
-                            <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2">
-                                {msg.images.slice(0,4).map((img, i) => (
-                                <div key={i} className="flex-none h-32 w-auto aspect-video rounded-xl overflow-hidden bg-surface relative border border-border shadow-sm group">
-                                    <img 
-                                        src={img} 
-                                        alt={`Result ${i + 1}`} 
-                                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
-                                        loading="lazy"
+                                {msg.sources && msg.sources.length > 0 && (
+                                    <div className="mb-8">
+                                      <SourcesGrid sources={msg.sources} />
+                                    </div>
+                                )}
+
+                                {/* Assistant Response Images (Search results) */}
+                                {msg.images && msg.images.length > 0 && (
+                                    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide -mx-2 px-2 mb-6">
+                                        {msg.images.map((img, i) => (
+                                        <div key={i} className="flex-none h-32 w-auto aspect-video rounded-xl overflow-hidden bg-surface relative border border-border shadow-sm group">
+                                            <img 
+                                                src={img} 
+                                                alt={`Result ${i + 1}`} 
+                                                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" 
+                                                loading="lazy"
+                                            />
+                                        </div>
+                                        ))}
+                                    </div>
+                                )}
+                                
+                                <div className="prose prose-neutral dark:prose-invert max-w-none mb-6">
+                                    <MessageContent 
+                                      content={msg.content} 
+                                      isStreaming={idx === messages.length - 1 && isLoading} 
                                     />
                                 </div>
-                                ))}
-                            </div>
+
+                                {msg.relatedQuestions && msg.relatedQuestions.length > 0 && (
+                                    <div className="mt-8 pt-4">
+                                      <h4 className="text-xs font-medium text-muted mb-3 flex items-center gap-2">
+                                          <CornerDownRight className="w-3 h-3" />
+                                          Related
+                                      </h4>
+                                      <div className="flex flex-col gap-2">
+                                          {msg.relatedQuestions.map((q, i) => (
+                                            <button 
+                                                key={i}
+                                                onClick={() => handleSearch(q)}
+                                                className="text-left text-sm text-primary hover:text-scira-accent transition-colors py-1.5 px-3 rounded-lg hover:bg-surface-hover border border-transparent hover:border-border truncate"
+                                            >
+                                                {q}
+                                            </button>
+                                          ))}
+                                      </div>
+                                    </div>
+                                )}
+                                
+                                <div className="flex items-center gap-4 mt-6 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button className="text-muted hover:text-primary transition-colors">
+                                      <Copy className="w-4 h-4" />
+                                    </button>
+                                    <button className="text-muted hover:text-primary transition-colors">
+                                      <Share className="w-4 h-4" />
+                                    </button>
+                                    <button className="text-muted hover:text-primary transition-colors">
+                                      <RotateCcw className="w-4 h-4" />
+                                    </button>
+                                </div>
+                              </div>
                           )}
-
-                          {/* Assistant Response Content with Typing Animation */}
-                          <MessageContent 
-                             content={msg.content} 
-                             isStreaming={idx === messages.length - 1 && isLoading} 
-                          />
-
-                          {/* Sources Grid with Collapsible View */}
-                          {msg.sources && msg.sources.length > 0 && (
-                             <SourcesGrid sources={msg.sources} />
-                          )}
-
-                          {/* Related Questions */}
-                          {msg.relatedQuestions && msg.relatedQuestions.length > 0 && (
-                            <div className="mt-2">
-                               <h3 className="text-sm font-medium text-muted flex items-center gap-2 mb-3">
-                                  <CornerDownRight className="w-3.5 h-3.5" />
-                                  Related
-                               </h3>
-                               <div className="flex flex-wrap gap-2">
-                                 {msg.relatedQuestions.map((q, i) => (
-                                   <button 
-                                     key={i}
-                                     onClick={() => handleSearch(q)}
-                                     className="px-4 py-2 bg-surface hover:bg-surface-hover border border-border rounded-xl text-sm text-primary transition-all duration-200 text-left hover:scale-[1.02] hover:shadow-sm"
-                                   >
-                                     {q}
-                                   </button>
-                                 ))}
-                               </div>
-                            </div>
-                          )}
-
-                          {/* Action Bar */}
-                          <div className="flex items-center gap-2 pt-2 border-t border-border/40">
-                             <button className="p-2 text-muted hover:text-scira-accent transition-all duration-200 hover:scale-110 hover:bg-surface-hover rounded-full"><RotateCcw className="w-4 h-4" /></button>
-                             <button className="p-2 text-muted hover:text-scira-accent transition-all duration-200 hover:scale-110 hover:bg-surface-hover rounded-full"><Copy className="w-4 h-4" /></button>
-                             <button className="p-2 text-muted hover:text-scira-accent transition-all duration-200 hover:scale-110 hover:bg-surface-hover rounded-full"><Share className="w-4 h-4" /></button>
+                        </div>
+                    ))}
+                    
+                    {isLoading && messages[messages.length - 1]?.role === 'user' && (
+                        <div className="flex flex-col gap-4 max-w-3xl animate-pulse">
+                          <div className="flex gap-2 mb-4">
+                              <div className="h-4 w-24 bg-surface-hover rounded"></div>
                           </div>
-                       </div>
+                          <div className="space-y-2">
+                              <div className="h-4 w-3/4 bg-surface-hover rounded"></div>
+                              <div className="h-4 w-1/2 bg-surface-hover rounded"></div>
+                          </div>
+                        </div>
                     )}
-                  </div>
-                ))}
-                
-                {/* Searching State */}
-                {isSearching && (
-                   <div className="flex items-center gap-3 text-muted animate-pulse mt-8">
-                      <div className="w-5 h-5 flex items-center justify-center">
-                          <Globe className="w-4 h-4 animate-spin text-scira-accent" />
-                      </div>
-                      <span className="text-sm font-medium text-scira-accent">{searchStatus || 'Searching resources...'}</span>
-                   </div>
-                )}
-             </div>
-          </div>
+                    
+                    {isSearching && (
+                        <div className="flex items-center gap-2 text-muted text-sm animate-pulse">
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                          {searchStatus || "Thinking..."}
+                        </div>
+                    )}
 
-          <div className="flex-none bg-background pb-6 px-4">
-             {renderInputBar(false)}
-          </div>
-        </div>
+                    <div ref={messagesEndRef} />
+                  </div>
+                  
+                  <div className="fixed bottom-0 left-0 w-full bg-background/95 backdrop-blur-xl pt-4 pb-6 px-4 z-20">
+                    {renderInputBar(false)}
+                  </div>
+              </div>
+            )}
+          </main>
       )}
     </div>
   );

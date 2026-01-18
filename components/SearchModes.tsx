@@ -1,5 +1,5 @@
 import React from 'react';
-import { Video, FileText, CheckCircle, Zap } from 'lucide-react';
+import { Video, FileText, CheckCircle, Zap, Image, Globe, Presentation } from 'lucide-react';
 import { XIcon, RedditIcon } from './Icons';
 import { SearchMode } from '../types';
 
@@ -10,7 +10,9 @@ interface SearchModesProps {
 
 const modes: SearchMode[] = [
   { id: 'fast', label: 'Fast RAG', icon: Zap },
-  { id: 'web', label: 'Web', icon: Zap }, // Fallback icon if Globe isn't passed, but normally handled in parent or valid
+  { id: 'web', label: 'Web', icon: Globe },
+  { id: 'images', label: 'Images', icon: Image },
+  { id: 'slides', label: 'Slides', icon: Presentation },
   { id: 'x', label: 'X Search', icon: XIcon },
   { id: 'reddit', label: 'Reddit Search', icon: RedditIcon },
   { id: 'research', label: 'Research', icon: FileText, isDeep: true },
@@ -22,7 +24,7 @@ export const SearchModes: React.FC<SearchModesProps> = ({ activeMode, onSelect }
   return (
     <div className="flex flex-wrap items-center justify-center gap-2 animate-fade-in mt-4">
       {modes.map((mode) => (
-        mode.id !== 'web' && ( // Skip 'web' here as it's the default toggle, or keep if you want explicit button
+        mode.id !== 'web' && ( // Skip 'web' here as it's the default toggle/implied
         <button
           key={mode.id}
           onClick={() => onSelect(activeMode === mode.id ? 'web' : mode.id)}
