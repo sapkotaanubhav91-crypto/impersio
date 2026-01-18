@@ -25,6 +25,7 @@ export const streamResponse = async (
   searchResults: SearchResult[],
   attachments: string[],
   isReasoningEnabled: boolean,
+  isMobile: boolean,
   onChunk: (content: string) => void,
   onWidget: (widget: WidgetData) => void,
   onRelated: (questions: string[]) => void
@@ -53,6 +54,7 @@ export const streamResponse = async (
       3. **Multi-Model**: You are powered by a swarm of models (Gemini, Llama, Qwen, etc.).
       4. **Multimodal**: You can see and analyze user-uploaded images.
       5. **Privacy-Focused**: You provide direct answers without tracking.
+      6. **Device Awareness**: You are currently running on a ${isMobile ? 'Mobile Device' : 'Desktop Computer'}. Adjust your response format for optimal reading on this screen size.
     `;
 
     // Optimization: Shorter system prompt for lower latency

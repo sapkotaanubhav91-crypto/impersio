@@ -60,17 +60,17 @@ const SEARCH_MODES = [
 // Updated Regex to include feature/capability questions so they don't trigger a web search
 const SKIP_SEARCH_REGEX = /^(hi|hello|hey|greetings|sup|howdy|yo|good\s*(morning|afternoon|evening|night)|how\s*are\s*you|who\s*are\s*you|what\s*is\s*your\s*name|help|test|what\s*can\s*you\s*do|what\s*are\s*your\s*features|capabilities|features)$/i;
 
-const ImpersioLogo = () => (
+const ImpersioLogo = ({ isMobile }: { isMobile: boolean }) => (
   <div className="flex items-center gap-3 select-none transition-transform duration-300 hover:scale-105 cursor-default">
     {/* Impersio Logo Icon */}
-    <div className="w-10 h-10 relative flex items-center justify-center text-primary">
+    <div className={`${isMobile ? 'w-8 h-8' : 'w-10 h-10'} relative flex items-center justify-center text-primary`}>
        <svg viewBox="0 0 52 40" fill="none" stroke="currentColor" strokeWidth="4" className="w-full h-full">
           <rect x="2" y="2" width="20" height="36" rx="10" />
           <rect x="18" y="2" width="20" height="36" rx="10" />
           <circle cx="12" cy="11" r="2.5" fill="currentColor" stroke="none" />
        </svg>
     </div>
-    <span className="font-sans font-medium tracking-tight text-primary text-4xl">
+    <span className={`font-sans font-medium tracking-tight text-primary ${isMobile ? 'text-3xl' : 'text-4xl'}`}>
       Impersio
     </span>
   </div>
@@ -92,6 +92,14 @@ export default function App() {
   const [view, setView] = useState<'home' | 'discover'>('home');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [attachments, setAttachments] = useState<string[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null;
@@ -188,6 +196,7 @@ export default function App() {
         searchResults,
         currentAttachments,
         isReasoningEnabled,
+        isMobile, // Pass mobile state to AI
         (chunkText) => {
           setMessages(prev => {
             const newMessages = [...prev];
@@ -306,7 +315,7 @@ export default function App() {
         shadow-sm group 
         focus-within:border-muted/40 focus-within:shadow-md
         transition-all duration-300
-        p-2
+        ${isMobile ? 'p-1.5' : 'p-2'}
         ${isInitial ? '' : ''}
       `}>
          {/* Attachment Previews */}
@@ -334,14 +343,14 @@ export default function App() {
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
-            placeholder="What do you want to know?"
-            className="w-full bg-transparent text-primary placeholder-muted/50 text-[18px] px-4 pt-3 pb-3 focus:outline-none resize-none overflow-hidden min-h-[56px] max-h-[200px] rounded-xl"
+            placeholder={isMobile ? "Ask anything..." : "What do you want to know?"}
+            className={`w-full bg-transparent text-primary placeholder-muted/50 ${isMobile ? 'text-[16px] px-3 pt-2' : 'text-[18px] px-4 pt-3'} pb-3 focus:outline-none resize-none overflow-hidden min-h-[56px] max-h-[200px] rounded-xl`}
             rows={1}
-            autoFocus={isInitial}
+            autoFocus={isInitial && !isMobile}
           />
 
           <div className="flex items-center justify-between px-2 pb-2 pt-1">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
                {/* Globe / Scope Dropdown */}
                <div className="relative">
                  <button 
@@ -349,7 +358,7 @@ export default function App() {
                     title="Search Scope"
                  >
                     <Globe className="w-4 h-4" />
-                    <span className="text-xs font-medium opacity-70 group-hover:opacity-100 group-hover:text-scira-accent">Web</span>
+                    {!isMobile && <span className="text-xs font-medium opacity-70 group-hover:opacity-100 group-hover:text-scira-accent">Web</span>}
                     <ChevronDown className="w-3 h-3 opacity-50 group-hover:text-scira-accent" />
                  </button>
                </div>
@@ -361,7 +370,7 @@ export default function App() {
                  title="Deep Reasoning"
                >
                  <ReasoningIcon className="w-4 h-4" />
-                 {isReasoningEnabled && <span className="text-xs font-medium">Deep</span>}
+                 {isReasoningEnabled && !isMobile && <span className="text-xs font-medium">Deep</span>}
                </button>
 
                {/* Model Selector Pill */}
@@ -371,7 +380,7 @@ export default function App() {
                     className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-scira-accent/10 hover:text-scira-accent rounded-full text-xs text-muted font-medium transition-all duration-200 hover:scale-105"
                   >
                     <selectedModel.icon className="w-4 h-4" />
-                    <span>{selectedModel.name}</span>
+                    {!isMobile && <span>{selectedModel.name}</span>}
                     <ChevronDown className="w-3 h-3 opacity-50" />
                   </button>
                   
@@ -457,15 +466,15 @@ export default function App() {
       )}
 
       {!hasSearched ? (
-        <main className="flex-1 flex flex-col items-center justify-center -mt-16 px-4">
+        <main className={`flex-1 flex flex-col items-center justify-center px-4 ${isMobile ? '-mt-4' : '-mt-16'}`}>
           <div className="mb-10 animate-fade-in">
-             <ImpersioLogo />
+             <ImpersioLogo isMobile={isMobile} />
           </div>
           
           {renderInputBar(true)}
           
           {/* Search Modes Row - Below Input */}
-          <div className="mt-4 w-full max-w-2xl">
+          <div className="mt-4 w-full max-w-2xl overflow-x-auto no-scrollbar">
              <SearchModes activeMode={activeMode} onSelect={setActiveMode} />
           </div>
 
