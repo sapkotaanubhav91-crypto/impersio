@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { X, Mail, Lock, Loader2, CheckCircle } from 'lucide-react';
+import { GithubIcon } from './Icons';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -63,6 +64,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
+  const handleGithubLogin = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: {
+          redirectTo: window.location.origin,
+        }
+      });
+      if (error) throw error;
+      // Redirect will happen automatically
+    } catch (err: any) {
+      setError(err.message || "GitHub login failed");
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
       <div className="w-full max-w-md bg-surface border border-border rounded-2xl shadow-2xl p-6 relative animate-in zoom-in-95 duration-200">
@@ -101,52 +117,71 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
               {isLogin ? 'Sign in to access your search history' : 'Sign up to save your conversations'}
             </p>
 
-            <form onSubmit={handleAuth} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted ml-1">Email</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
-                  <input 
-                    type="email" 
-                    required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl py-2 pl-10 pr-4 text-primary focus:outline-none focus:border-primary/50 transition-colors"
-                    placeholder="you@example.com"
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-medium text-muted ml-1">Password</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
-                  <input 
-                    type="password" 
-                    required
-                    minLength={6}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-background border border-border rounded-xl py-2 pl-10 pr-4 text-primary focus:outline-none focus:border-primary/50 transition-colors"
-                    placeholder="••••••••"
-                  />
-                </div>
-              </div>
-
-              {error && (
-                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
-                  {error}
-                </div>
-              )}
-
+            <div className="space-y-4">
               <button 
-                type="submit"
-                disabled={loading}
-                className="w-full bg-primary text-background font-medium py-2.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                onClick={handleGithubLogin}
+                className="w-full bg-[#24292e] hover:bg-[#24292e]/90 text-white font-medium py-2.5 rounded-xl transition-all flex items-center justify-center gap-2 shadow-sm"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isLogin ? 'Sign In' : 'Sign Up')}
+                <GithubIcon className="w-5 h-5" />
+                Continue with GitHub
               </button>
-            </form>
+
+              <div className="relative flex items-center justify-center">
+                 <div className="absolute inset-0 flex items-center">
+                   <div className="w-full border-t border-border"></div>
+                 </div>
+                 <span className="relative bg-surface px-4 text-xs text-muted font-medium uppercase tracking-wider">
+                   Or continue with email
+                 </span>
+              </div>
+
+              <form onSubmit={handleAuth} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted ml-1">Email</label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
+                    <input 
+                      type="email" 
+                      required
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl py-2 pl-10 pr-4 text-primary focus:outline-none focus:border-primary/50 transition-colors"
+                      placeholder="you@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-xs font-medium text-muted ml-1">Password</label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-muted" />
+                    <input 
+                      type="password" 
+                      required
+                      minLength={6}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl py-2 pl-10 pr-4 text-primary focus:outline-none focus:border-primary/50 transition-colors"
+                      placeholder="••••••••"
+                    />
+                  </div>
+                </div>
+
+                {error && (
+                  <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg text-red-500 text-sm">
+                    {error}
+                  </div>
+                )}
+
+                <button 
+                  type="submit"
+                  disabled={loading}
+                  className="w-full bg-primary text-background font-medium py-2.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                >
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : (isLogin ? 'Sign In' : 'Sign Up')}
+                </button>
+              </form>
+            </div>
 
             <div className="mt-6 text-center text-sm text-muted">
               {isLogin ? "Don't have an account? " : "Already have an account? "}
