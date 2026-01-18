@@ -8,11 +8,16 @@ export interface SavedConversation {
 }
 
 export const createConversation = async (title: string, userId?: string): Promise<string | null> => {
+  // If no user is logged in, do not attempt to create a conversation in Supabase.
+  if (!userId) {
+    return null;
+  }
+
   try {
-    const payload: any = { title };
-    if (userId) {
-      payload.user_id = userId;
-    }
+    const payload = { 
+      title, 
+      user_id: userId 
+    };
 
     const { data, error } = await supabase
       .from('conversations')
@@ -21,12 +26,12 @@ export const createConversation = async (title: string, userId?: string): Promis
       .single();
 
     if (error) {
-      console.error('Error creating conversation:', error);
+      console.error('Error creating conversation:', error.message || JSON.stringify(error));
       return null;
     }
     return data.id;
-  } catch (e) {
-    console.error('Unexpected error creating conversation:', e);
+  } catch (e: any) {
+    console.error('Unexpected error creating conversation:', e.message || e);
     return null;
   }
 };
@@ -56,10 +61,10 @@ export const saveMessage = async (
       }]);
 
     if (error) {
-      console.error('Error saving message:', error);
+      console.error('Error saving message:', error.message || JSON.stringify(error));
     }
-  } catch (e) {
-    console.error('Unexpected error saving message:', e);
+  } catch (e: any) {
+    console.error('Unexpected error saving message:', e.message || e);
   }
 };
 
@@ -72,12 +77,12 @@ export const getUserConversations = async (userId: string): Promise<SavedConvers
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching conversations:', error);
+      console.error('Error fetching conversations:', error.message || JSON.stringify(error));
       return [];
     }
     return data || [];
-  } catch (e) {
-    console.error('Unexpected error fetching conversations:', e);
+  } catch (e: any) {
+    console.error('Unexpected error fetching conversations:', e.message || e);
     return [];
   }
 };
@@ -91,7 +96,7 @@ export const getConversationMessages = async (conversationId: string): Promise<M
       .order('created_at', { ascending: true });
 
     if (error) {
-      console.error('Error fetching messages:', error);
+      console.error('Error fetching messages:', error.message || JSON.stringify(error));
       return [];
     }
 
@@ -103,8 +108,8 @@ export const getConversationMessages = async (conversationId: string): Promise<M
       widget: msg.widget ? JSON.parse(msg.widget) : undefined,
       relatedQuestions: msg.related_questions ? JSON.parse(msg.related_questions) : undefined
     }));
-  } catch (e) {
-    console.error('Unexpected error fetching messages:', e);
+  } catch (e: any) {
+    console.error('Unexpected error fetching messages:', e.message || e);
     return [];
   }
 };

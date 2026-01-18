@@ -38,6 +38,7 @@ import { WeatherWidget } from './components/WeatherWidget';
 import { SearchModes } from './components/SearchModes';
 import { AuthModal } from './components/AuthModal';
 import { HistorySidebar } from './components/HistorySidebar';
+import { MessageContent } from './components/MessageContent';
 import { 
   ReasoningIcon, 
   GeminiIcon, 
@@ -433,17 +434,17 @@ export default function App() {
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
             placeholder={isMobile ? "Ask anything..." : "What do you want to know?"}
-            className={`w-full bg-transparent text-primary placeholder-muted/50 ${isMobile ? 'text-[16px] px-3 pt-2' : 'text-[18px] px-4 pt-3'} pb-3 focus:outline-none resize-none overflow-hidden min-h-[56px] max-h-[200px] rounded-xl`}
+            className={`w-full bg-transparent text-primary placeholder-muted/50 ${isMobile ? 'text-[16px] px-3 pt-2' : 'text-[16px] px-4 pt-2'} pb-2 focus:outline-none resize-none overflow-hidden min-h-[44px] max-h-[200px] rounded-xl`}
             rows={1}
             autoFocus={isInitial && !isMobile}
           />
 
-          <div className="flex items-center justify-between px-2 pb-2 pt-1">
+          <div className="flex items-center justify-between px-2 pb-1 pt-0">
             <div className="flex items-center gap-1 md:gap-2">
                {/* Globe / Scope Dropdown */}
                <div className="relative">
                  <button 
-                    className="p-2 text-muted hover:text-scira-accent bg-transparent hover:bg-scira-accent/10 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-1.5 group"
+                    className="p-1.5 text-muted hover:text-scira-accent bg-transparent hover:bg-scira-accent/10 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-1.5 group"
                     title="Search Scope"
                  >
                     <Globe className="w-4 h-4" />
@@ -455,7 +456,7 @@ export default function App() {
                {/* Reasoning Toggle */}
                <button 
                  onClick={() => setIsReasoningEnabled(!isReasoningEnabled)}
-                 className={`p-2 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-1.5 ${isReasoningEnabled ? 'text-scira-accent bg-scira-accent/10' : 'text-muted hover:text-scira-accent hover:bg-scira-accent/10'}`}
+                 className={`p-1.5 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-1.5 ${isReasoningEnabled ? 'text-scira-accent bg-scira-accent/10' : 'text-muted hover:text-scira-accent hover:bg-scira-accent/10'}`}
                  title="Deep Reasoning"
                >
                  <ReasoningIcon className="w-4 h-4" />
@@ -466,7 +467,7 @@ export default function App() {
                <div className="relative">
                   <button 
                     onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                    className="flex items-center gap-2 px-3 py-1.5 bg-transparent hover:bg-scira-accent/10 hover:text-scira-accent rounded-full text-xs text-muted font-medium transition-all duration-200 hover:scale-105"
+                    className="flex items-center gap-2 px-3 py-1 bg-transparent hover:bg-scira-accent/10 hover:text-scira-accent rounded-full text-xs text-muted font-medium transition-all duration-200 hover:scale-105"
                   >
                     <selectedModel.icon className="w-4 h-4" />
                     {!isMobile && <span>{selectedModel.name}</span>}
@@ -513,7 +514,7 @@ export default function App() {
                  onClick={() => fileInputRef.current?.click()}
                  className={`p-2 rounded-full transition-all duration-200 hover:scale-110 ${attachments.length > 0 ? 'text-scira-accent bg-scira-accent/10' : 'text-muted hover:text-scira-accent hover:bg-scira-accent/10'}`}
                >
-                 <Paperclip className="w-5 h-5" />
+                 <Paperclip className="w-4 h-4" />
                </button>
                
                {query.trim().length > 0 || attachments.length > 0 ? (
@@ -554,55 +555,6 @@ export default function App() {
         onSignIn={() => setIsAuthModalOpen(true)}
         onOpenAbout={() => setView('about')}
       />
-
-      {/* Top Bar for Home View (User/Menu) */}
-      {!hasSearched && view === 'home' && (
-        <div className="absolute top-6 left-6 right-6 z-20 flex items-center justify-between pointer-events-none">
-            {/* Left: History/Menu (Only if logged in or allow guest to see empty) */}
-            <div className="pointer-events-auto">
-               <button 
-                 onClick={() => setIsHistoryOpen(true)}
-                 className="p-2 rounded-full text-muted hover:text-primary transition-all duration-200 hover:bg-surface"
-               >
-                 <Menu className="w-5 h-5" />
-               </button>
-            </div>
-
-            {/* Right: Theme & Auth */}
-            <div className="pointer-events-auto flex items-center gap-3">
-              <button
-                onClick={toggleTheme}
-                className="p-2 rounded-full text-muted hover:text-primary transition-all duration-200 hover:bg-surface hover:scale-105"
-              >
-                {theme === 'dark' ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-              </button>
-              
-              {user ? (
-                 <button 
-                   onClick={() => setIsHistoryOpen(true)} 
-                   className="w-9 h-9 rounded-full bg-scira-accent/20 text-scira-accent flex items-center justify-center font-medium text-sm border border-scira-accent/30 hover:bg-scira-accent/30 transition-all"
-                 >
-                    {user.email?.[0].toUpperCase()}
-                 </button>
-              ) : (
-                 <div className="flex items-center gap-2">
-                   <button 
-                     onClick={() => setIsAuthModalOpen(true)}
-                     className="px-4 py-2 text-sm font-medium text-muted hover:text-primary transition-colors"
-                   >
-                     Log In
-                   </button>
-                   <button 
-                     onClick={() => setIsAuthModalOpen(true)}
-                     className="px-4 py-2 bg-primary text-background rounded-full text-sm font-medium hover:opacity-90 transition-all shadow-sm"
-                   >
-                     Sign Up
-                   </button>
-                 </div>
-              )}
-            </div>
-        </div>
-      )}
 
       {!hasSearched ? (
         <main className={`flex-1 flex flex-col items-center justify-center px-4 ${isMobile ? '-mt-4' : '-mt-16'}`}>
@@ -701,14 +653,11 @@ export default function App() {
                             </div>
                           )}
 
-                          {/* Assistant Response Content */}
-                          <div className="markdown-body text-muted/90 font-light w-full min-w-0">
-                            <ReactMarkdown components={{
-                                p: ({node, ...props}) => <p className="mb-4 text-[16px] leading-relaxed" {...props} />,
-                                li: ({node, ...props}) => <li className="mb-1 text-[16px]" {...props} />,
-                                strong: ({node, ...props}) => <strong className="font-semibold text-primary" {...props} />
-                            }}>{msg.content}</ReactMarkdown>
-                          </div>
+                          {/* Assistant Response Content with Typing Animation */}
+                          <MessageContent 
+                             content={msg.content} 
+                             isStreaming={idx === messages.length - 1 && isLoading} 
+                          />
 
                           {/* Sources Grid */}
                           {msg.sources && msg.sources.length > 0 && (

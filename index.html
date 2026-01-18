@@ -71,15 +71,19 @@
       }
       
       .markdown-body {
-        line-height: 1.7;
-        font-size: 0.95rem;
+        line-height: 1.85; /* Increased for better readability */
+        font-size: 1rem;
         color: var(--primary);
+        letter-spacing: 0.01em;
       }
-      .markdown-body p { margin-bottom: 1rem; }
-      .markdown-body ul, .markdown-body ol { margin-bottom: 1rem; padding-left: 1.5rem; }
-      .markdown-body li { margin-bottom: 0.5rem; }
+      .markdown-body p { margin-bottom: 1.5rem; } /* Increased spacing */
+      .markdown-body ul, .markdown-body ol { margin-bottom: 1.5rem; padding-left: 1.5rem; }
+      .markdown-body li { margin-bottom: 0.75rem; } /* Increased item spacing */
       .markdown-body h1, .markdown-body h2, .markdown-body h3 { 
-        font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; 
+        font-weight: 600; margin-top: 2.5rem; margin-bottom: 1rem; /* More breathing room for headers */
+      }
+      .markdown-body h1:first-child, .markdown-body h2:first-child, .markdown-body h3:first-child {
+        margin-top: 0.5rem;
       }
       .markdown-body a { color: #20b8cd; text-decoration: none; }
       .markdown-body a:hover { text-decoration: underline; }
