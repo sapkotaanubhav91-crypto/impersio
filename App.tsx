@@ -11,7 +11,7 @@ import {
   ThumbsUp,
   ThumbsDown,
   ExternalLink,
-  AudioWaveform,
+  Mic,
   CornerDownRight,
   Copy,
   Share,
@@ -514,7 +514,7 @@ export default function App() {
                  </button>
                ) : (
                  <button className="flex items-center justify-center w-8 h-8 bg-voice-peach hover:opacity-90 rounded-full text-voice-text transition-all duration-200 hover:scale-110 shadow-sm cursor-pointer">
-                    <AudioWaveform className="w-4 h-4" />
+                    <Mic className="w-4 h-4" />
                  </button>
                )}
             </div>
