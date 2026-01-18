@@ -262,7 +262,8 @@ export default function App() {
         const file = item.getAsFile();
         if (file) {
           try {
-             const base64 = await processFile(file);
+             // Cast file to File to satisfy TypeScript if inference fails
+             const base64 = await processFile(file as File);
              setAttachments(prev => [...prev, base64]);
           } catch (err) {
              console.error("Failed to read pasted image", err);
@@ -278,7 +279,7 @@ export default function App() {
       const newAttachments: string[] = [];
       for (const file of files) {
          try {
-            const base64 = await processFile(file);
+            const base64 = await processFile(file as File);
             newAttachments.push(base64);
          } catch (err) {
             console.error("Failed to read file", err);

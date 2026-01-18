@@ -1,8 +1,20 @@
 import { GoogleGenAI } from "@google/genai";
 import { SearchResult, WidgetData } from "../types";
 
+// Safe access to environment variable to prevent "process is not defined" crashes in browser
+const getApiKey = () => {
+    try {
+        if (typeof process !== 'undefined' && process.env) {
+            return process.env.API_KEY;
+        }
+    } catch (e) {
+        // Ignore errors if process is not available
+    }
+    return undefined;
+};
+
 // Lazily initialize to avoid top-level failures if API_KEY is missing
-const getAiClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY || "dummy_key" });
+const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() || "dummy_key" });
 
 const OPENROUTER_API_KEY = "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";
 const GROQ_API_KEY = "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";
@@ -45,7 +57,7 @@ export const streamResponse = async (
       1. Cite sources inline like [1].
       2. Use bullet points and markdown formatting to structure your response.
       3. Be direct but provide sufficient detail (medium level).
-      4. WIDGETS: Use these formats at the START of your response if the user asks for:
+      4. WIDGETS: DO NOT generate a widget unless explicitly asked. Use these formats at the START of your response ONLY if the user explicitly asks for time, weather, or stock prices:
          - Time: ///TIME: HH:MM AM/PM | Weekday, Month DD, YYYY | Location | (Offset)///
          - Weather: ///WEATHER: Location/// (e.g., ///WEATHER: Paris, France///)
          - Stock/Crypto Price/Chart: ///STOCK: Symbol/// (e.g., ///STOCK: AAPL/// or ///STOCK: BTC-USD///). Use standard tickers.
@@ -60,7 +72,7 @@ export const streamResponse = async (
       RULES:
       1. Answer directly and concisely (medium level).
       2. Use bullet points for lists and structured information.
-      3. WIDGETS: Use these formats at the START of your response if the user explicitly asks for:
+      3. WIDGETS: DO NOT generate a widget unless explicitly asked. Use these formats at the START of your response ONLY if the user explicitly asks for time, weather, or stock prices:
          - Time: ///TIME: HH:MM AM/PM | Weekday, Month DD, YYYY | Location | (Offset)///
          - Weather: ///WEATHER: Location///
          - Stock/Crypto Price/Chart: ///STOCK: Symbol///

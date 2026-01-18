@@ -9,10 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.3",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
     "@google/genai": "^1.37.0",
-    "react-dom": "^19.2.3",
-    "lucide-react": "^0.562.0",
+    "lucide-react": "0.344.0",
     "react-markdown": "9"
   },
   "devDependencies": {
