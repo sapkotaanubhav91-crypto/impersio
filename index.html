@@ -1,9 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="en" class="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>Impersio</title>
+    <meta name="description" content="Impersio is a free AI-powered search engine." />
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 50 40' fill='none' stroke='%2318181b' stroke-width='4' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='2' width='20' height='36' rx='10' /%3E%3Crect x='20' y='2' width='20' height='36' rx='10' /%3E%3Ccircle cx='14' cy='11' r='3' fill='%2318181b' stroke='none' /%3E%3C/svg%3E">
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -71,16 +73,16 @@
       }
       
       .markdown-body {
-        line-height: 1.85; /* Increased for better readability */
+        line-height: 1.7; 
         font-size: 1rem;
         color: var(--primary);
         letter-spacing: 0.01em;
       }
-      .markdown-body p { margin-bottom: 1.5rem; } /* Increased spacing */
-      .markdown-body ul, .markdown-body ol { margin-bottom: 1.5rem; padding-left: 1.5rem; }
-      .markdown-body li { margin-bottom: 0.75rem; } /* Increased item spacing */
+      .markdown-body p { margin-bottom: 1rem; }
+      .markdown-body ul, .markdown-body ol { margin-bottom: 1rem; padding-left: 1.5rem; }
+      .markdown-body li { margin-bottom: 0.5rem; }
       .markdown-body h1, .markdown-body h2, .markdown-body h3 { 
-        font-weight: 600; margin-top: 2.5rem; margin-bottom: 1rem; /* More breathing room for headers */
+        font-weight: 600; margin-top: 2rem; margin-bottom: 1rem; 
       }
       .markdown-body h1:first-child, .markdown-body h2:first-child, .markdown-body h3:first-child {
         margin-top: 0.5rem;
@@ -92,6 +94,35 @@
         padding: 0.2em 0.4em;
         border-radius: 4px;
         font-size: 0.9em;
+      }
+
+      /* Table Styles */
+      .markdown-body table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 1.5rem 0;
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+      .markdown-body th {
+        background-color: var(--surface-hover);
+        text-align: left;
+        font-weight: 600;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 0.9em;
+      }
+      .markdown-body td {
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        vertical-align: top;
+        font-size: 0.95em;
+        background-color: var(--surface);
+      }
+      .markdown-body tr:last-child td {
+        border-bottom: none;
       }
       
       /* Smooth fade in */
@@ -113,6 +144,7 @@
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
+    "remark-gfm": "https://esm.sh/remark-gfm@^4.0.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
     "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1"
   }

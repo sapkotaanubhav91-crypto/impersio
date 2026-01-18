@@ -1,6 +1,6 @@
 {
-  "name": "Scira Interface Clone",
-  "description": "A pixel-perfect clone of the Scira AI search engine interface.",
+  "name": "Impersio",
+  "description": "Impersio is a free AI-powered search engine.",
   "requestFramePermissions": [
     "microphone"
   ]

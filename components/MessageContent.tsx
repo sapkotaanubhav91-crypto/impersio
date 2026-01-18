@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, memo } from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 interface MessageContentProps {
   content: string;
@@ -13,7 +14,7 @@ export const MessageContent = memo(({ content, isStreaming }: MessageContentProp
   });
   
   const contentRef = useRef(content);
-  const requestRef = useRef<number>();
+  const requestRef = useRef<number | null>(null);
 
   useEffect(() => {
     contentRef.current = content;
@@ -66,6 +67,7 @@ export const MessageContent = memo(({ content, isStreaming }: MessageContentProp
   return (
     <div className="markdown-body text-muted/90 font-light w-full min-w-0">
       <ReactMarkdown 
+        remarkPlugins={[remarkGfm]}
         components={{
             p: ({node, ...props}) => <p className="mb-4 text-[16px] leading-relaxed" {...props} />,
             li: ({node, ...props}) => <li className="mb-1 text-[16px]" {...props} />,

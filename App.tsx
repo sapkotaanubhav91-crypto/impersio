@@ -5,28 +5,20 @@ import {
   ChevronDown, 
   Globe, 
   ArrowUp,
-  Compass,
   Sun,
   Moon,
-  ThumbsUp,
-  ThumbsDown,
-  ExternalLink,
   Mic,
   CornerDownRight,
   Copy,
   Share,
-  Info,
   RotateCcw,
-  Cpu,
   Menu,
   Check,
-  Sparkles,
   X,
-  UserCircle,
-  History
+  Zap
 } from 'lucide-react';
-import { streamResponse } from './services/geminiService';
-import { searchWeb } from './services/googleSearchService';
+import { streamResponse, generateSearchQueries } from './services/geminiService';
+import { searchWeb, searchOllama } from './services/googleSearchService';
 import { createConversation, saveMessage, getConversationMessages } from './services/chatStorageService';
 import { supabase } from './services/supabaseClient';
 import { Message, SearchResult, WidgetData } from './types';
@@ -87,6 +79,59 @@ export const ImpersioLogo = ({ isMobile, compact = false }: { isMobile?: boolean
   </div>
 );
 
+// New Component for collapsible sources
+const SourcesGrid = ({ sources }: { sources: SearchResult[] }) => {
+  const [expanded, setExpanded] = useState(false);
+  
+  if (!sources || sources.length === 0) return null;
+  
+  const displayedSources = expanded ? sources : sources.slice(0, 4);
+  const hiddenCount = sources.length - 4;
+
+  return (
+    <div className="">
+        <h3 className="text-sm font-medium text-muted mb-3 flex items-center gap-2">
+            <Globe className="w-3.5 h-3.5" />
+            Sources ({sources.length})
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
+            {displayedSources.map((source, i) => (
+                <a 
+                    key={i} 
+                    href={source.link}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-3 p-3 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all duration-200 group h-full hover:scale-[1.02] hover:shadow-md"
+                >
+                    <div className="w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center shrink-0">
+                        <img 
+                            src={`https://www.google.com/s2/favicons?domain=${new URL(source.link).hostname}&sz=64`}
+                            className="w-3 h-3 opacity-70 group-hover:opacity-100 transition-opacity"
+                            onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                        />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="text-xs font-medium text-primary truncate group-hover:text-scira-accent transition-colors">{source.title}</div>
+                        <div className="text-[10px] text-muted truncate opacity-80">{source.displayLink}</div>
+                    </div>
+                </a>
+            ))}
+            {!expanded && hiddenCount > 0 && (
+                <button 
+                    onClick={() => setExpanded(true)}
+                    className="flex items-center justify-center gap-2 p-3 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all duration-200 text-xs font-medium text-muted hover:text-primary h-full"
+                >
+                    <span className="w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center">
+                        +{hiddenCount}
+                    </span>
+                    View {hiddenCount} more
+                </button>
+            )}
+        </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [query, setQuery] = useState('');
   const [activeMode, setActiveMode] = useState<string>('web');
@@ -96,6 +141,7 @@ export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [searchStatus, setSearchStatus] = useState<string>(''); // For granular status updates
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -166,7 +212,7 @@ export default function App() {
   }, [query]);
 
   const shouldSearchWeb = (query: string, mode: string | null): boolean => {
-    if (mode && mode !== 'web') return true;
+    if (mode && mode !== 'web' && mode !== 'fast') return true;
     if (SKIP_SEARCH_REGEX.test(query.trim())) return false;
     if (query.trim().length < 2) return false;
     return true;
@@ -230,11 +276,73 @@ export default function App() {
 
       if (needsSearch) {
         setIsSearching(true);
-        // Pass the activeMode to the search service
-        const response = await searchWeb(finalQuery, activeMode);
-        searchResults = response.results;
-        searchImages = response.images;
-        setIsSearching(false);
+        setSearchStatus(activeMode === 'fast' ? 'Ollama Fast Search...' : 'Searching web...');
+        
+        // --- FAST RAG MODE ---
+        if (activeMode === 'fast') {
+            // Skip the generation step, invoke Ollama directly
+            const { results } = await searchOllama(finalQuery);
+            searchResults = results;
+            // No images from Ollama usually, but structure supports it
+            
+            setIsSearching(false);
+            setSearchStatus('');
+
+        } else if (activeMode === 'web') {
+            // --- STANDARD WEB (FAST) ---
+            // Skip query generation for standard web search to reduce latency < 2s
+            const { results, images } = await searchWeb(finalQuery, 'web');
+            searchResults = results;
+            searchImages = images;
+
+            setIsSearching(false);
+            setSearchStatus('');
+        } else {
+            // --- DEEP / RESEARCH / OTHERS ---
+            // 1. Generate Multiple Queries (Deep Search) only if strictly needed
+            let queriesToRun = [finalQuery];
+            
+            // Only generate queries for 'research' mode to save time on others
+            if (activeMode === 'research') {
+                try {
+                    setSearchStatus('Planning research...');
+                    const generatedQueries = await generateSearchQueries(finalQuery);
+                    if (generatedQueries.length > 0) {
+                        queriesToRun = generatedQueries;
+                    }
+                } catch (err) {
+                    console.warn("Failed to generate queries, falling back to simple search");
+                }
+            }
+
+            setSearchStatus(activeMode === 'research' ? `Analyzing ${queriesToRun.length * 5} sources...` : 'Searching...');
+            
+            // 2. Run searches in parallel (using Tavily/Google)
+            const searchPromises = queriesToRun.map(q => searchWeb(q, activeMode));
+            const resultsArray = await Promise.all(searchPromises);
+            
+            // 3. Aggregate Results
+            const allResults: SearchResult[] = [];
+            const seenLinks = new Set<string>();
+            const allImages: string[] = [];
+
+            resultsArray.forEach(res => {
+                if (res.images) allImages.push(...res.images);
+                res.results.forEach(item => {
+                    if (!seenLinks.has(item.link)) {
+                        seenLinks.add(item.link);
+                        allResults.push(item);
+                    }
+                });
+            });
+
+            // Limit context size (Top 25 results = 5 queries * ~5 sources)
+            searchResults = allResults.slice(0, 25);
+            searchImages = [...new Set(allImages)]; // Simple dedup for images
+            
+            setIsSearching(false);
+            setSearchStatus('');
+        }
       }
 
       setMessages(prev => [...prev, { 
@@ -297,6 +405,7 @@ export default function App() {
     } catch (e) {
       console.error("Search failed", e);
       setIsSearching(false);
+      setSearchStatus('');
       const errorMessage = "Sorry, I encountered an error while searching.";
       setMessages(prev => [...prev, { role: 'assistant', content: errorMessage }]);
       if (currentConversationId) {
@@ -490,8 +599,10 @@ export default function App() {
                     className="p-1.5 text-muted hover:text-scira-accent bg-transparent hover:bg-scira-accent/10 rounded-lg transition-all duration-200 hover:scale-105 flex items-center gap-1.5 group"
                     title="Search Scope"
                  >
-                    <Globe className="w-4 h-4" />
-                    {!isMobile && <span className="text-xs font-medium opacity-70 group-hover:opacity-100 group-hover:text-scira-accent">Web</span>}
+                    {activeMode === 'fast' ? <Zap className="w-4 h-4 text-scira-accent" /> : <Globe className="w-4 h-4" />}
+                    {!isMobile && <span className="text-xs font-medium opacity-70 group-hover:opacity-100 group-hover:text-scira-accent">
+                        {activeMode === 'fast' ? 'Fast RAG' : 'Web'}
+                    </span>}
                     <ChevronDown className="w-3 h-3 opacity-50 group-hover:text-scira-accent" />
                  </button>
                </div>
@@ -671,37 +782,9 @@ export default function App() {
                              isStreaming={idx === messages.length - 1 && isLoading} 
                           />
 
-                          {/* Sources Grid */}
+                          {/* Sources Grid with Collapsible View */}
                           {msg.sources && msg.sources.length > 0 && (
-                            <div className="">
-                                <h3 className="text-sm font-medium text-muted mb-3 flex items-center gap-2">
-                                    <Globe className="w-3.5 h-3.5" />
-                                    Sources
-                                </h3>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-                                    {msg.sources.slice(0, 4).map((source, i) => (
-                                        <a 
-                                            key={i} 
-                                            href={source.link}
-                                            target="_blank"
-                                            rel="noreferrer"
-                                            className="flex items-center gap-3 p-3 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all duration-200 group h-full hover:scale-[1.02] hover:shadow-md"
-                                        >
-                                            <div className="w-6 h-6 rounded-full bg-background border border-border flex items-center justify-center shrink-0">
-                                                <img 
-                                                    src={getFaviconUrl(source.link)} 
-                                                    className="w-3 h-3 opacity-70 group-hover:opacity-100 transition-opacity"
-                                                    onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
-                                                />
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="text-xs font-medium text-primary truncate group-hover:text-scira-accent transition-colors">{source.title}</div>
-                                                <div className="text-[10px] text-muted truncate opacity-80">{source.displayLink}</div>
-                                            </div>
-                                        </a>
-                                    ))}
-                                </div>
-                            </div>
+                             <SourcesGrid sources={msg.sources} />
                           )}
 
                           {/* Related Questions */}
@@ -742,7 +825,7 @@ export default function App() {
                       <div className="w-5 h-5 flex items-center justify-center">
                           <Globe className="w-4 h-4 animate-spin text-scira-accent" />
                       </div>
-                      <span className="text-sm font-medium text-scira-accent">Searching resources...</span>
+                      <span className="text-sm font-medium text-scira-accent">{searchStatus || 'Searching resources...'}</span>
                    </div>
                 )}
              </div>

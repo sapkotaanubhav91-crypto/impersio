@@ -1,4 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { SearchResult, WidgetData } from "../types";
 
 // Safe access to environment variable to prevent "process is not defined" crashes in browser
@@ -18,6 +18,42 @@ const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() || "dummy_key" }
 
 const OPENROUTER_API_KEY = "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";
 const GROQ_API_KEY = "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";
+
+export const generateSearchQueries = async (prompt: string): Promise<string[]> => {
+  try {
+    const ai = getAiClient();
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.0-flash', // Use fast model for orchestration
+      contents: `You are an expert search query optimizer.
+      Generate 5 distinct, high-value Google search queries based on the user's prompt to gather comprehensive information.
+      
+      Strategy:
+      1. Main intent query.
+      2. Practical details (costs, logistics, how-to).
+      3. Comparisons or "best of" lists.
+      4. Recent news or updates related to the topic.
+      5. Cultural or contextual aspects (if applicable) or Reddit/Forum discussions.
+
+      User Prompt: "${prompt}"
+      
+      Return strictly a JSON array of 5 strings.`,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: {
+            type: Type.ARRAY,
+            items: { type: Type.STRING }
+        }
+      }
+    });
+    
+    const text = response.text;
+    if (!text) return [prompt];
+    return JSON.parse(text);
+  } catch (e) {
+    console.error("Query generation failed", e);
+    return [prompt];
+  }
+};
 
 export const streamResponse = async (
   prompt: string, 
@@ -61,24 +97,20 @@ export const streamResponse = async (
     // Formatting instructions mimicking Perplexity style
     const formattingRules = `
     FORMATTING RULES (CRITICAL):
-    Perplexity AI uses a structured Markdown-based formatting system designed for clarity, scannability, and source transparency.
+    You are Impersio, a minimalist AI search engine.
 
-    Core Structure:
-    - Responses start with 1-2 concise plain-text sentences.
-    - Followed by Markdown headers (## for main sections, ### for subsections).
-    - Each section contains 2-3 well-cited sentences with smooth transitions.
-
-    Key Formatting Rules:
-    - Lists: Bullets (-) for features/steps; no nesting; one item per line with sentence case and periods when complete.
-    - Tables: Markdown tables for comparisons; citations go inline in cells.
-    - Citations: format immediately after sentences [1]; max 3 per sentence, no space before bracket.
-    - Spacing: Double newlines between paragraphs/sections; single newlines for list items; generous whitespace emphasis.
-
-    Content Guidelines:
-    - No opening markdown, summaries, or conclusions.
-    - Active voice, plain language, no personal pronouns.
-    - Math uses LaTeX.
-    - Avoid walls of text—prioritize white space over density.
+    OUTPUT STRUCTURE:
+    - **Length**: Target 15-25 lines of concise, scannable text (300-500 words).
+    - **Tables**: USE MARKDOWN TABLES for comparisons, itineraries, lists of options, or pros/cons.
+      - Example: | Day | Activity | Location |
+      - Example: | Feature | Option A | Option B |
+    - **Tone**: Objective, professional, and dense. Avoid conversational filler.
+    - **Citations**: Use inline [1] citations.
+    
+    LAYOUT:
+    1. Direct Answer (2-3 lines).
+    2. Data Table (MANDATORY if applicable).
+    3. Key Details / Nuances (Bulleted list).
     `;
 
     // Optimization: Shorter system prompt for lower latency
@@ -104,7 +136,7 @@ export const streamResponse = async (
       3. RELATED QUESTIONS: At the very end of your response, strictly generate 3 related follow-up questions in this format: ///RELATED: ["Question 1", "Question 2", "Question 3"]///
       ${isReasoningEnabled ? '4. REASONING: The user has requested "Deep Reasoning". Think step-by-step, analyze conflicts in data, and provide a comprehensive, logic-driven answer.' : ''}
       
-      CONTEXT:
+      CONTEXT (25+ sources provided):
       ${contextString}`;
     } else {
       // CONVERSATIONAL MODE
