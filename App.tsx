@@ -396,6 +396,49 @@ export default function App() {
      setAttachments([]);
   };
 
+  // Helper to render the floating minimal header
+  const renderHeader = (compact: boolean) => (
+    <div className="absolute top-0 left-0 w-full p-4 flex justify-between items-start z-50 pointer-events-none">
+       {/* Left: Menu & Logo (compact only) */}
+       <div className="flex items-center gap-3 pointer-events-auto">
+          <button 
+             onClick={() => setIsHistoryOpen(true)}
+             className="p-2 text-muted hover:text-primary rounded-xl hover:bg-surface/50 transition-colors backdrop-blur-sm"
+          >
+             <Menu className="w-5 h-5" />
+          </button>
+          {compact && (
+            <button 
+              className="cursor-pointer hover:opacity-80 transition-all duration-200"
+              onClick={handleNewChat}
+            >
+              <ImpersioLogo compact />
+            </button>
+          )}
+       </div>
+       
+       {/* Right: Auth */}
+       <div className="pointer-events-auto">
+           {!user && (
+              <button 
+                 onClick={() => setIsAuthModalOpen(true)}
+                 className="text-xs font-medium px-3 py-1.5 bg-primary text-background rounded-full hover:opacity-90 transition-all shadow-sm"
+              >
+                 Sign In
+              </button>
+           )}
+           {user && (
+              <button 
+                onClick={() => setIsHistoryOpen(true)} 
+                className="w-8 h-8 rounded-full bg-scira-accent/20 text-scira-accent flex items-center justify-center font-medium text-xs border border-scira-accent/30"
+              >
+                  {user.email?.[0].toUpperCase()}
+              </button>
+           )}
+       </div>
+    </div>
+  );
+
   const renderInputBar = (isInitial: boolean) => (
     <div className={`w-full max-w-2xl mx-auto relative z-10`}>
       <div className={`
@@ -558,6 +601,9 @@ export default function App() {
 
       {!hasSearched ? (
         <main className={`flex-1 flex flex-col items-center justify-center px-4 ${isMobile ? '-mt-4' : '-mt-16'}`}>
+          {/* Minimal Floating Header for Home (Menu + Sign In) */}
+          {renderHeader(false)}
+          
           <div className="mb-10 animate-fade-in">
              <ImpersioLogo isMobile={isMobile} />
           </div>
@@ -571,46 +617,12 @@ export default function App() {
 
         </main>
       ) : (
-        <div className="flex flex-col h-screen">
-          <header className="flex-none h-14 flex items-center px-4 bg-background sticky top-0 z-10 justify-between border-b border-border/40 backdrop-blur-md supports-[backdrop-filter]:bg-background/80">
-            <div className="flex items-center gap-4">
-               <button 
-                   onClick={() => setIsHistoryOpen(true)}
-                   className="p-1.5 -ml-2 text-muted hover:text-primary rounded-lg hover:bg-surface transition-colors"
-               >
-                  <Menu className="w-5 h-5" />
-               </button>
-               <button 
-                  className="cursor-pointer hover:opacity-80 transition-all duration-200 hover:scale-[1.02]"
-                  onClick={handleNewChat}
-               >
-                  <ImpersioLogo compact />
-               </button>
-            </div>
-            
-            {/* Header Right Actions */}
-            <div className="flex items-center gap-2">
-                 {!user && (
-                    <button 
-                       onClick={() => setIsAuthModalOpen(true)}
-                       className="text-xs font-medium px-3 py-1.5 bg-primary text-background rounded-full hover:opacity-90 transition-all shadow-sm"
-                    >
-                       Sign In
-                    </button>
-                 )}
-                 {user && (
-                    <button 
-                      onClick={() => setIsHistoryOpen(true)} 
-                      className="w-8 h-8 rounded-full bg-scira-accent/20 text-scira-accent flex items-center justify-center font-medium text-xs border border-scira-accent/30"
-                    >
-                        {user.email?.[0].toUpperCase()}
-                    </button>
-                 )}
-            </div>
-          </header>
+        <div className="flex flex-col h-screen relative">
+          {/* Minimal Floating Header for Chat (Menu + Small Logo + Sign In) */}
+          {renderHeader(true)}
 
           <div className="flex-1 overflow-y-auto px-4 scroll-smooth">
-             <div className="max-w-3xl mx-auto pb-40 pt-4">
+             <div className="max-w-3xl mx-auto pb-40 pt-16">
                 {messages.map((msg, idx) => (
                   <div key={idx} className="animate-fade-in mb-10">
                     {msg.role === 'user' ? (
