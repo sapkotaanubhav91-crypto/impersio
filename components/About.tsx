@@ -1,7 +1,6 @@
-
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
-import { ImpersioLogo } from '../App';
+import { PerplexityLogo } from './Icons';
 
 interface AboutProps {
   onBack: () => void;
@@ -20,8 +19,9 @@ export const About: React.FC<AboutProps> = ({ onBack }) => {
             <ArrowLeft className="w-5 h-5" />
             <span className="font-medium">Back</span>
           </button>
-          <div className="opacity-100">
-             <ImpersioLogo compact />
+          <div className="opacity-100 flex items-center gap-2">
+             <PerplexityLogo className="w-8 h-8 text-primary" />
+             <span className="font-serif text-2xl tracking-tight font-medium">perplexity</span>
           </div>
         </div>
       </div>

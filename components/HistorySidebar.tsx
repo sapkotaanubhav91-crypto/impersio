@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { MessageSquare, X, LogOut, Trash2, Plus, LogIn, Info } from 'lucide-react';
+import { MessageSquare, X, LogOut, Trash2, Plus, LogIn, Info, Sun, Moon, Monitor } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
 import { SavedConversation, getUserConversations } from '../services/chatStorageService';
 
@@ -12,6 +12,8 @@ interface HistorySidebarProps {
   userId: string;
   onSignIn: () => void;
   onOpenAbout: () => void;
+  theme: 'light' | 'dark' | 'system';
+  onToggleTheme: () => void;
 }
 
 export const HistorySidebar: React.FC<HistorySidebarProps> = ({ 
@@ -21,7 +23,9 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
   onNewChat, 
   userId,
   onSignIn,
-  onOpenAbout
+  onOpenAbout,
+  theme,
+  onToggleTheme
 }) => {
   const [conversations, setConversations] = useState<SavedConversation[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,14 +62,14 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
 
       {/* Sidebar Panel */}
       <div className={`
-        fixed top-0 left-0 h-full w-72 bg-surface border-r border-border z-50 transform transition-transform duration-300 ease-in-out flex flex-col
+        fixed top-0 left-0 h-full w-72 bg-sidebar border-r border-border z-50 transform transition-transform duration-300 ease-in-out flex flex-col
         ${isOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h2 className="font-semibold text-primary">Menu</h2>
           <button 
             onClick={onClose}
-            className="p-1 text-muted hover:text-primary rounded-lg hover:bg-surface-hover transition-colors"
+            className="p-1 text-muted hover:text-primary rounded-lg hover:bg-surface transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -77,7 +81,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
               onNewChat();
               onClose();
             }}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-background py-2.5 rounded-xl font-medium hover:opacity-90 transition-opacity"
+            className="w-full flex items-center justify-center gap-2 bg-scira-accent text-white py-2.5 rounded-xl font-medium hover:opacity-90 transition-opacity"
           >
             <Plus className="w-4 h-4" />
             New Chat
@@ -87,14 +91,14 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         <div className="flex-1 overflow-y-auto px-2 pb-2">
           {!userId ? (
              <div className="p-4 flex flex-col items-center justify-center text-center mt-6 mb-6">
-                <div className="w-12 h-12 bg-surface-hover rounded-full flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-surface rounded-full flex items-center justify-center mb-4">
                    <LogIn className="w-6 h-6 text-muted" />
                 </div>
                 <h3 className="font-medium text-primary mb-2">Save your threads</h3>
                 <p className="text-sm text-muted mb-4">Sign in to keep your search history and access it anywhere.</p>
                 <button 
                   onClick={() => { onClose(); onSignIn(); }}
-                  className="px-4 py-2 bg-surface hover:bg-surface-hover border border-border rounded-lg text-sm font-medium transition-all"
+                  className="px-4 py-2 bg-surface hover:bg-border border border-border rounded-lg text-sm font-medium transition-all"
                 >
                   Sign In / Sign Up
                 </button>
@@ -104,7 +108,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                 <div className="px-3 py-2 text-xs font-semibold text-muted uppercase tracking-wider">History</div>
                 {loading ? (
                   <div className="flex flex-col gap-2 p-2">
-                    {[1,2,3].map(i => <div key={i} className="h-12 bg-surface-hover animate-pulse rounded-lg" />)}
+                    {[1,2,3].map(i => <div key={i} className="h-12 bg-surface animate-pulse rounded-lg" />)}
                   </div>
                 ) : conversations.length === 0 ? (
                   <div className="text-center text-muted text-sm py-4">
@@ -119,7 +123,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
                           onSelectChat(chat.id, chat.title);
                           onClose();
                         }}
-                        className="w-full text-left p-3 rounded-lg hover:bg-surface-hover transition-colors group relative"
+                        className="w-full text-left p-3 rounded-lg hover:bg-surface transition-colors group relative"
                       >
                         <div className="font-medium text-sm text-primary truncate pr-4">{chat.title}</div>
                         <div className="text-xs text-muted mt-1">
@@ -134,9 +138,19 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
         </div>
 
         <div className="p-2 border-t border-border space-y-1">
+           <button 
+             onClick={onToggleTheme}
+             className="w-full flex items-center gap-3 p-3 text-sm text-muted hover:text-primary transition-colors rounded-lg hover:bg-surface"
+           >
+             {theme === 'light' && <Sun className="w-4 h-4" />}
+             {theme === 'dark' && <Moon className="w-4 h-4" />}
+             {theme === 'system' && <Monitor className="w-4 h-4" />}
+             <span className="capitalize">{theme} Theme</span>
+           </button>
+
           <button 
              onClick={() => { onClose(); onOpenAbout(); }}
-             className="w-full flex items-center gap-3 p-3 text-sm text-muted hover:text-primary transition-colors rounded-lg hover:bg-surface-hover"
+             className="w-full flex items-center gap-3 p-3 text-sm text-muted hover:text-primary transition-colors rounded-lg hover:bg-surface"
            >
              <Info className="w-4 h-4" />
              About Impersio
@@ -145,7 +159,7 @@ export const HistorySidebar: React.FC<HistorySidebarProps> = ({
           {userId && (
              <button 
                onClick={handleSignOut}
-               className="w-full flex items-center gap-3 p-3 text-sm text-muted hover:text-red-500 transition-colors rounded-lg hover:bg-surface-hover"
+               className="w-full flex items-center gap-3 p-3 text-sm text-muted hover:text-red-500 transition-colors rounded-lg hover:bg-surface"
              >
                <LogOut className="w-4 h-4" />
                Sign Out

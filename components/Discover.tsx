@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, MoreHorizontal, Clock, Heart } from 'lucide-react';
 import { searchNews } from '../services/googleSearchService';
@@ -27,10 +28,10 @@ export const Discover: React.FC<DiscoverProps> = ({ onBack }) => {
       setLoading(true);
       const category = CATEGORIES.find(c => c.id === activeCategory);
       if (category) {
-        const results = await searchNews(category.query);
+        const response = await searchNews(category.query);
         
         // Use a dynamic search-based image fallback
-        const resultsWithFallback = results.map((item) => ({
+        const resultsWithFallback = response.results.map((item) => ({
           ...item,
           image: item.image || `https://tse4.mm.bing.net/th?q=${encodeURIComponent(item.title)}&w=800&h=450&c=7&rs=1`
         }));

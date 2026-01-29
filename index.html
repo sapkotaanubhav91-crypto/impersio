@@ -1,16 +1,16 @@
 
 <!DOCTYPE html>
-<html lang="en" class="dark">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>Impersio</title>
     <meta name="description" content="Impersio is a minimalist AI search engine." />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%231c7483' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' /%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23DA7756' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z' /%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
@@ -18,18 +18,20 @@
         theme: {
           extend: {
             fontFamily: {
-              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              sans: ['Inter', 'system-ui', 'sans-serif'],
               serif: ['"Instrument Serif"', 'Georgia', 'serif'],
             },
             colors: {
-              background: 'var(--background)', 
+              background: 'var(--bg-primary)', 
+              sidebar: 'var(--bg-secondary)',
               surface: 'var(--surface)',    
-              'surface-hover': 'var(--surface-hover)',
+              'surface-hover': 'var(--surface-hover)', 
               border: 'var(--border)',     
-              primary: 'var(--primary)',    
-              muted: 'var(--muted)',      
+              primary: 'var(--text-primary)',    
+              muted: 'var(--text-secondary)',      
               'bubble-user': 'var(--bubble-user)',
-              'scira-accent': '#2db6c7', // Brighter teal to match reference
+              'scira-accent': 'var(--accent-primary)', 
+              'scira-accent-hover': 'var(--accent-hover)',
             },
             animation: {
               'fade-in': 'fadeIn 0.3s ease-out',
@@ -44,42 +46,52 @@
                 '0%': { transform: 'translateY(10px)', opacity: '0' },
                 '100%': { transform: 'translateY(0)', opacity: '1' },
               }
+            },
+            boxShadow: {
+              'elegant': '0 2px 10px rgba(0, 0, 0, 0.03)',
             }
           }
         }
       }
     </script>
     <style>
+      /* Claude Classic Design Tokens */
       :root {
-        /* Light Mode */
-        --background: #ffffff;                 
-        --surface: #f3f3f3;                    
-        --surface-hover: #e5e5e5;
-        --border: #e5e5e5; 
-        --primary: #171717;      
-        --muted: #737373;  
-        --bubble-user: #f3f4f6;                 
+        /* Light Mode: Warm Paper */
+        --bg-primary: #FAF8F5;      
+        --bg-secondary: #F0F0F0;    
+        --surface: #FFFFFF;         
+        --surface-hover: #F2F0E9;
+        --text-primary: #1A1A1A;    
+        --text-secondary: #6E6E6E;  
+        --accent-primary: #DA7756;  /* Terracotta Starburst */
+        --accent-hover: #C36040;
+        --border: #E5E5E5;          
+        --bubble-user: #F0F0F0;
       }
       
       .dark {
-        /* Exact Reference Dark Mode */
-        --background: #191919; 
-        --surface: #202020;    
-        --surface-hover: #2f2f2f; 
-        --border: #333333;     
-        --primary: #e8e8e8;    
-        --muted: #a3a3a3;      
-        --bubble-user: #222222; 
+        /* Dark Mode: Full Black & Deep Charcoal */
+        --bg-primary: #000000;      /* Full Black Background */
+        --bg-secondary: #121212;    /* Sidebar/Inputs */
+        --surface: #181818;         /* Cards */
+        --surface-hover: #222222;
+        --text-primary: #ECECEC;    
+        --text-secondary: #909090;  
+        --accent-primary: #DA7756;  /* Same warm accent */
+        --accent-hover: #E8886A;
+        --border: #262626;
+        --bubble-user: #1A1A1A;     /* Specific dark bubble for user */
       }
 
       body {
-        background-color: var(--background);
-        color: var(--primary);
-        font-family: '"Plus Jakarta Sans"', sans-serif;
+        background-color: var(--bg-primary);
+        color: var(--text-primary);
+        font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
+        letter-spacing: -0.01em;
       }
 
-      /* Thin, elegant scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
@@ -89,64 +101,43 @@
       }
       ::-webkit-scrollbar-thumb {
         background: var(--border); 
-        border-radius: 3px;
-      }
-      ::-webkit-scrollbar-thumb:hover {
-        background: var(--muted); 
-      }
-
-      textarea::-webkit-scrollbar {
-        display: none;
-      }
-      textarea {
-        -ms-overflow-style: none;
-        scrollbar-width: none;
+        border-radius: 9999px;
       }
       
+      /* Typography overrides for that editorial feel */
       .markdown-body {
-        line-height: 1.75; 
+        line-height: 1.7; 
         font-size: 16px; 
-        font-weight: 400;
-        color: var(--primary);
+        color: var(--text-primary);
       }
       
       .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-        color: var(--primary);
-        font-weight: 600;
-        letter-spacing: -0.01em;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
+        font-family: 'Instrument Serif', serif;
+        font-weight: 400;
+        margin-top: 1.5rem;
+        margin-bottom: 0.75rem;
       }
       
-      .markdown-body a {
-        color: var(--scira-accent);
-        text-decoration: none;
-        font-weight: 500;
-      }
-      .markdown-body a:hover {
-        text-decoration: underline;
+      .markdown-body p {
+        margin-bottom: 1rem;
+        font-family: 'Instrument Serif', serif; /* Serif body text for AI */
+        font-size: 1.1rem;
+        line-height: 1.6;
       }
 
-      .markdown-body code {
-        background-color: var(--surface-hover);
-        padding: 0.2em 0.4em;
-        border-radius: 4px;
-        font-size: 0.85em;
-        font-family: monospace;
+      .markdown-body strong {
+        font-weight: 600;
+        color: var(--text-primary);
       }
 
-      .markdown-body pre {
-        background-color: var(--surface-hover);
-        padding: 1rem;
-        border-radius: 0.5rem;
-        overflow-x: auto;
-        margin-bottom: 1.5rem;
-        border: 1px solid var(--border);
+      /* Specific adjustments for sans-serif UI elements */
+      .font-sans {
+        font-family: 'Inter', sans-serif !important;
       }
       
       ::selection {
-        background: rgba(45, 182, 199, 0.3);
-        color: white;
+        background: rgba(218, 119, 86, 0.3);
+        color: inherit;
       }
     </style>
 <script type="importmap">

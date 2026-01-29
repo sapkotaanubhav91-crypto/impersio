@@ -1,6 +1,10 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { SearchResult, WidgetData } from "../types";
+import { SearchResult, WidgetData, Message, ProSearchStep } from "../types";
+import { searchWeb, searchFast } from './googleSearchService';
+import { streamCerebras, CerebrasMessage } from './cerebrasService';
+import { streamOpenRouter } from './openRouterService';
+import { streamGroq } from './groqService';
 
 // Safe access to environment variable to prevent "process is not defined" crashes in browser
 const getApiKey = () => {
@@ -17,53 +21,270 @@ const getApiKey = () => {
 // Lazily initialize to avoid top-level failures if API_KEY is missing
 const getAiClient = () => new GoogleGenAI({ apiKey: getApiKey() || "dummy_key" });
 
-const OPENROUTER_API_KEY = "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";
-const GROQ_API_KEY = "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";
+// --- Search Router ---
 
-// Fast heuristic generation to meet 0.10s requirement
+export const shouldSearch = async (query: string): Promise<boolean> => {
+    // Quick local checks for obvious cases
+    const lower = query.toLowerCase().trim();
+    if (lower.length < 5) return false;
+    if (['hi', 'hello', 'hey', 'help', 'who are you', 'what is this', 'good morning', 'good evening'].includes(lower)) return false;
+    
+    // LLM Check (Fast Model)
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Classify if this query needs external info (Google Search).
+            
+            Query: "${query}"
+            
+            Rules:
+            - "Weather", "Stock", "News", "Who is", "Events", "Facts" -> TRUE
+            - "Hi", "Write poem", "Debug this code", "Explain concept" -> FALSE
+            
+            Return JSON: { "search": boolean }`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: { search: { type: Type.BOOLEAN } }
+                }
+            }
+        });
+        const result = JSON.parse(response.text || "{}");
+        return result.search ?? true; // Default to true if unsure
+    } catch(e) {
+        return true; // Default to search on error to be safe
+    }
+};
+
+const classifyComplexity = async (query: string): Promise<'NORMAL' | 'MEDIUM' | 'HARD' | 'RESEARCH'> => {
+  try {
+      const ai = getAiClient();
+      const response = await ai.models.generateContent({
+          model: 'gemini-2.0-flash',
+          contents: `Classify the complexity/type of this user query.
+          
+          Query: "${query}"
+          
+          Definitions:
+          - NORMAL: Simple greetings, factual questions, simple calculations, quick summaries.
+          - MEDIUM: Creative writing, nuanced explanations, code debugging, comparison.
+          - HARD: Complex reasoning, math proofs, advanced coding, multi-step analysis.
+          - RESEARCH: Deep dive topics, academic questions, history, detailed reports, extensive data lookup.
+          
+          Return JSON: { "complexity": "NORMAL" | "MEDIUM" | "HARD" | "RESEARCH" }`,
+          config: {
+              responseMimeType: "application/json",
+              responseSchema: {
+                  type: Type.OBJECT,
+                  properties: { complexity: { type: Type.STRING, enum: ['NORMAL', 'MEDIUM', 'HARD', 'RESEARCH'] } }
+              }
+          }
+      });
+      const result = JSON.parse(response.text || "{}");
+      return result.complexity || 'NORMAL';
+  } catch(e) {
+      return 'NORMAL';
+  }
+};
+
+// --- Pro Search Helpers ---
+
+const generatePlan = async (query: string): Promise<string[]> => {
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `You are a search planning agent.
+            Break down the user's query into 2 to 4 distinct, sequential research steps to answer it comprehensively.
+            Steps should be actionable (e.g., "Identify...", "Find...", "Compare...", "Analyze...").
+            
+            User Query: "${query}"
+            
+            Return strictly a JSON array of strings (the step titles).`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            }
+        });
+        const text = response.text;
+        if (!text) return ["Analyze the query"];
+        return JSON.parse(text);
+    } catch (e) {
+        console.error("Plan generation failed", e);
+        return ["Research the topic"];
+    }
+};
+
+const generateQueriesForStep = async (stepTitle: string, originalQuery: string): Promise<string[]> => {
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: `Generate 2-3 specific Google search queries to complete this research step: "${stepTitle}".
+            Context (Original Query): "${originalQuery}".
+            
+            Return strictly a JSON array of strings.`,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING }
+                }
+            }
+        });
+        const text = response.text;
+        if (!text) return [stepTitle];
+        return JSON.parse(text);
+    } catch (e) {
+        return [stepTitle];
+    }
+};
+
+// --- Main Orchestrator ---
+
+export const orchestrateProSearch = async (
+    query: string,
+    modelId: string,
+    history: Message[],
+    onStepsUpdate: (steps: ProSearchStep[]) => void,
+    onComplete: (fullContent: string, sources: SearchResult[]) => void
+) => {
+    const steps: ProSearchStep[] = [];
+    const allSources: SearchResult[] = [];
+
+    // 1. Plan
+    const plan = await generatePlan(query);
+    plan.forEach((title, idx) => {
+        steps.push({
+            id: `step-${idx}`,
+            title,
+            status: 'pending',
+            queries: [],
+            sources: []
+        });
+    });
+    // Add a final wrapping up step if not present
+    if (!plan.some(p => p.toLowerCase().includes('wrap') || p.toLowerCase().includes('summary'))) {
+        steps.push({ id: 'step-final', title: 'Wrapping up', status: 'pending', queries: [], sources: [] });
+    }
+    
+    onStepsUpdate([...steps]);
+
+    // 2. Execute Loop
+    for (let i = 0; i < steps.length; i++) {
+        // Skip final wrapper for actual searching usually, unless plan was short
+        if (steps[i].title === 'Wrapping up' && i === steps.length - 1) {
+             steps[i].status = 'in-progress';
+             onStepsUpdate([...steps]);
+             await new Promise(r => setTimeout(r, 600)); // Visual pause
+             steps[i].status = 'completed';
+             onStepsUpdate([...steps]);
+             continue;
+        }
+
+        steps[i].status = 'in-progress';
+        onStepsUpdate([...steps]);
+
+        // Generate Queries
+        const queries = await generateQueriesForStep(steps[i].title, query);
+        steps[i].queries = queries;
+        onStepsUpdate([...steps]);
+
+        // Execute Search (Parallel)
+        // We limit to 2 queries per step to be fast
+        const searchPromises = queries.slice(0, 2).map(q => searchFast(q));
+        const results = await Promise.all(searchPromises);
+        
+        const stepSources: SearchResult[] = [];
+        results.forEach(r => {
+            if (r.results) stepSources.push(...r.results);
+        });
+
+        // Deduplicate
+        const uniqueSources = stepSources.filter((s, index, self) => 
+            index === self.findIndex((t) => (t.link === s.link))
+        );
+
+        steps[i].sources = uniqueSources;
+        allSources.push(...uniqueSources);
+        
+        steps[i].status = 'completed';
+        onStepsUpdate([...steps]);
+    }
+
+    // 3. Final Answer
+    // We reuse the streamResponse logic with isReasoningEnabled = true to trigger Deep Research mode
+    await streamResponse(
+        query,
+        modelId,
+        history,
+        allSources,
+        [], // no attachments for now
+        true, // Enable Deep Research / Pro Search mode
+        false, // isMobile
+        (chunk) => onComplete(chunk, allSources), // Using partial updates as "Complete" for streaming effect
+        () => {}, // widget
+        () => {}, // related
+        (full, widget, related) => {
+            // Final callback if needed
+        }
+    );
+};
+
+// --- Existing Functions (Preserved & Updated) ---
+
 export const generateManualQueries = (prompt: string): string[] => {
     const base = prompt.trim();
     return [
-        base,                                      // Original intent
-        `${base} latest news updates`,            // Recency
-        `${base} detailed analysis statistics`,   // Data for slides
-        `${base} key features and benefits`,      // Structure
-        `${base} future roadmap`                  // Forward looking
+        base,                                      
+        `${base} latest news`,            
+        `${base} analysis`,   
+        `${base} key details`      
     ];
+};
+
+export const rewriteQuery = async (currentQuery: string, history: Message[]): Promise<string> => {
+    if (history.length === 0) return currentQuery;
+    try {
+        const ai = getAiClient();
+        const recentHistory = history.slice(-2)
+            .filter(m => m && m.role && m.content) // Safety check for invalid history items
+            .map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
+            
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash', 
+            contents: `Rewrite the USER'S LAST QUERY into a standalone Google search query based on history.
+HISTORY:
+${recentHistory}
+USER'S LAST QUERY:
+"${currentQuery}"
+REWRITTEN QUERY:`,
+            config: { maxOutputTokens: 30, temperature: 0 }
+        });
+        return response.text?.trim() || currentQuery;
+    } catch (e) {
+        return currentQuery;
+    }
 };
 
 export const generateSearchQueries = async (prompt: string): Promise<string[]> => {
   try {
     const ai = getAiClient();
     const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash', // Use fast model for orchestration
-      contents: `You are an expert search query optimizer.
-      Generate 5 distinct, high-value Google search queries based on the user's prompt to gather comprehensive information.
-      
-      Strategy:
-      1. Main intent query.
-      2. Practical details (costs, logistics, how-to).
-      3. Comparisons or "best of" lists.
-      4. Recent news or updates related to the topic.
-      5. Cultural or contextual aspects (if applicable) or Reddit/Forum discussions.
-
-      User Prompt: "${prompt}"
-      
-      Return strictly a JSON array of 5 strings.`,
+      model: 'gemini-2.0-flash', 
+      contents: `Generate 5 high-value Google search queries for: "${prompt}". Return JSON array of strings.`,
       config: {
         responseMimeType: "application/json",
-        responseSchema: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING }
-        }
+        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
       }
     });
-    
-    const text = response.text;
-    if (!text) return [prompt];
-    return JSON.parse(text);
+    return JSON.parse(response.text || "[]");
   } catch (e) {
-    console.error("Query generation failed", e);
     return [prompt];
   }
 };
@@ -71,6 +292,7 @@ export const generateSearchQueries = async (prompt: string): Promise<string[]> =
 export const streamResponse = async (
   prompt: string, 
   modelName: string, 
+  history: Message[],
   searchResults: SearchResult[],
   attachments: string[],
   isReasoningEnabled: boolean,
@@ -82,459 +304,269 @@ export const streamResponse = async (
 ): Promise<void> => {
   try {
     const now = new Date();
-    const currentDate = now.toLocaleString('en-US', { 
-      weekday: 'long', 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric', 
-      hour: '2-digit', 
-      minute: '2-digit',
-      timeZoneName: 'short'
-    });
+    const currentDate = now.toLocaleDateString('en-US');
+    const hasResults = searchResults.length > 0;
 
-    let systemInstruction = "";
+    // RAG: Format context for the model
+    const ragContext = hasResults 
+        ? searchResults.map((r, i) => `CITATION [${i+1}] ${r.title}\nURL: ${r.link}\nCONTENT: ${r.snippet}`).join('\n\n')
+        : "No external context provided. Rely on internal knowledge.";
 
-    const capabilitiesText = `
-    CAPABILITIES & FEATURES:
-      1. **Universal Search**: You are an all-in-one AI. You can browse the web, analyze images, summarize YouTube videos (using search results), and generate content.
-      2. **Widgets**: You can render interactive cards.
-         - Weather: For forecasts (Trigger: ///WEATHER: Location///).
-         - Stocks: For market data (Trigger: ///STOCK: Symbol///).
-         - Time: For world clocks (Trigger: ///TIME: ...///).
-         - Slides: For presentations (Trigger: ///SLIDES: {json}///).
-      3. **Presentation Generator**: If the user asks for a presentation, deck, or slides (e.g. "Create a PPT about X"), you MUST generate a ///SLIDES/// widget.
-      4. **YouTube Summarizer**: If the user provides a YouTube URL or asks for a video summary, use the provided search context to summarize the video content.
+    // STRUCTURE INSTRUCTIONS - MEDIUM LENGTH (250-500 Words)
+    const strictFormatInstructions = `
+    FORMATTING RULES (STRICT - MEDIUM LENGTH):
+    1. **Length Guidelines**: 
+       - **Target Range**: 250-500 words for explanations, guides, and analysis.
+       - **Simple Queries**: 200-300 words (Facts + 1 example/context).
+       - **Complex Queries**: 350-500 words (Intro, 3-5 key sections, conclusion/tips).
+    2. **Structure & Visuals**: 
+       - **Opening**: Start directly with a concise answer/summary.
+       - **Headers**: Use ### Headers to break down topics clearly.
+       - **Lists**: Use bullet points (*) heavily for readability.
+       - **Tables**: MUST generate a Markdown table for comparisons, pros/cons, or data specs when relevant.
+       - **Sentences**: Keep sentences concise (15-25 words).
+    3. **Content**:
+       - **Substance**: Explain *why* and *how*, don't just list facts.
+       - **Examples**: Include brief examples where helpful.
+    4. **Citations (CRITICAL)**:
+       - You MUST use the provided [CITATION] index for every fact retrieved.
+       - Format: "The sky is blue [1]."
+       - Citations go at the end of the sentence or clause.
+    5. **Tone**: Objective, journalistic, and informative.
     `;
-    
-    // UPDATED FORMATTING RULES FOR "GAP" AND "HEADERS"
-    const formattingRules = `
-    FORMATTING RULES (STRICT):
-    You are Impersio, a minimalist AI search engine. The user wants a clean, spacious layout with clear headers.
 
+    const deepResearchInstructions = `
+    MODE: DEEP RESEARCH REPORT
+    GOAL: Comprehensive analysis with RAG (Retrieval Augmented Generation).
+    
     STRUCTURE:
-    1. **Direct Answer**: Start with a concise 2-3 sentence summary of the main answer.
-    2. **Headers (###)**: You MUST use Markdown H3 (###) headers to separate every distinct section. 
-    3. **Paragraph Length**: STRICTLY limit paragraphs to 3-4 lines maximum. If text is longer, break it into a new section with a header or use a list.
-    4. **Maintain Gap**: Do not bundle multiple topics into one paragraph. Use headers to create vertical rhythm.
+    - Executive Summary
+    - Detailed Analysis (### Headers)
+    - Key Findings (Bulleted)
+    - Conclusion
     
-    Example Layout:
-    [Short Summary]
-    
-    ### Key Feature 1
-    [Concise paragraph ~3 lines]
-    
-    ### Key Feature 2
-    [Concise paragraph ~3 lines]
-    
-    ### Market Impact
-    [Concise paragraph ~3 lines]
-
-    5. **NO INLINE CITATIONS**: Do NOT use inline citations (e.g., [1], [Source]). Do NOT reference source numbers in the text. Provide the information cleanly.
+    Use inline citations [1], [2] rigorously.
     `;
 
-    // System prompt construction
-    if (searchResults.length > 0) {
-      // RAG MODE
-      const contextString = searchResults.map((result, index) => 
-        `[${index + 1}] ${result.title} (${result.link}): ${result.snippet} [Image: ${result.image || 'None'}]`
-      ).join("\n\n");
+    const systemInstruction = `You are Impersio, a minimalist AI search engine. Date: ${currentDate}.
+    
+    ${isReasoningEnabled ? deepResearchInstructions : strictFormatInstructions}
 
-      systemInstruction = `You are Impersio, a minimalist AI search engine. Current Time: ${currentDate}
-      ${capabilitiesText}
-      
-      OBJECTIVE: Provide a well-structured, segmented answer based on the context.
-      
-      ${formattingRules}
+    RAG CONTEXT (Use these sources to answer):
+    ${ragContext}
 
-      RULES:
-      1. **DO NOT CITE SOURCES INLINE**. The UI handles source attribution separately. Your text must be clean.
-      2. WIDGETS: Detect intent automatically. Use these formats at the START of your response:
-         - Time: ///TIME: HH:MM AM/PM | Weekday, Month DD, YYYY | Location | (Offset)///
-         - Weather: ///WEATHER: Location///
-         - Stock: ///STOCK: Symbol///
-         
-         - **SLIDES (CRITICAL)**: If the user asks for a presentation/slides:
-           a) Generate a valid JSON object for ///SLIDES///.
-           b) **CONTENT QUALITY**: The content MUST NOT look like generic AI output. Use professional business language, specific data points, dates, and names from the context.
-           c) **DETAIL**: Each slide must have 4-6 detailed bullet points.
-           d) **IMAGES**: Use the image URLs provided in the context if relevant.
-           e) **TEXT RESPONSE**: If you generate slides, your chat text response must be **EXTREMELY BRIEF** (e.g., "Here is the presentation you requested about X."). **DO NOT** summarize the content or repeat what is in the slides.
-           
-           Format: ///SLIDES: {"title": "Professional Title", "slides": [{"title": "Specific Slide Title", "content": ["Detailed point 1 with data", "Detailed point 2"], "image": "URL_FROM_CONTEXT_OR_NONE"}, {"title": "Data Slide", "content": ["Analysis point"], "chart": {"type": "bar", "title": "Chart Title", "data": [{"label": "A", "value": 10}, {"label": "B", "value": 20}]}}]}///
-
-      3. RELATED QUESTIONS: At the very end of your response, strictly generate 3 related follow-up questions in this format: ///RELATED: ["Question 1", "Question 2", "Question 3"]///
-      ${isReasoningEnabled ? '4. REASONING: The user has requested "Deep Reasoning". Think step-by-step, analyze conflicts in data, and provide a comprehensive, logic-driven answer.' : ''}
-      
-      CONTEXT (25+ sources provided):
-      ${contextString}`;
-    } else {
-      // CONVERSATIONAL MODE
-      systemInstruction = `You are Impersio, a minimalist AI search engine. Current Time: ${currentDate}
-      
-      OBJECTIVE: Provide a helpful answer optimized for readability.
-      
-      RULES:
-      1. **GREETINGS**: If the user input is a simple greeting (e.g., "hi", "hello"), respond specifically with a single sentence like "Hi! How can I help you today?" or "Hello! What's on your mind?". DO NOT list features.
-      2. **GENERAL**: If the user asks a question, answer it directly.
-      3. WIDGETS: Detect intent automatically. Use these formats at the START of your response if needed:
-         - Time, Weather, Stock as defined above.
-         - Slides: ///SLIDES: {"title": "Title", "slides": [{"title": "Slide 1", "content": ["Point 1", "Point 2"], "image": "Optional URL"}]}///
-      4. RELATED QUESTIONS: At the very end of your response, strictly generate 3 related follow-up questions in this format: ///RELATED: ["Question 1", "Question 2", "Question 3"]///
-      ${isReasoningEnabled ? '5. REASONING: The user has requested "Deep Reasoning". Think step-by-step and provide a comprehensive, logic-driven answer.' : ''}`;
-    }
+    GUIDELINES:
+    - Answer the user's query directly using the RAG CONTEXT.
+    - If the user greeting (hi, hello), just respond politely and briefly.
+    - **Repetition Ban**: Generate each fact once.
+    
+    WIDGETS (Only if requested):
+    - ///WEATHER: Location///
+    - ///STOCK: Symbol///
+    - ///SLIDES: JSON///
+    
+    RELATED QUESTIONS:
+    At the end, output: ///RELATED: ["Q1", "Q2", "Q3"]///
+    `;
 
     let fullStreamText = "";
     let widgetParsed = false;
     let relatedParsed = false;
-    
-    // Captured data for completion callback
     let capturedWidget: WidgetData | undefined = undefined;
     let capturedRelatedQuestions: string[] = [];
 
     const processChunk = (text: string) => {
       fullStreamText += text;
       
-      // 1. Handle Widgets (Start of stream)
-      if (!widgetParsed && fullStreamText.startsWith("///")) {
-        const endTagIndex = fullStreamText.indexOf("///", 3);
-        
-        if (endTagIndex !== -1) {
-          const rawTag = fullStreamText.substring(3, endTagIndex);
-          const colonIndex = rawTag.indexOf(":");
-          
-          if (colonIndex !== -1) {
-              const type = rawTag.substring(0, colonIndex).toUpperCase();
-              const content = rawTag.substring(colonIndex + 1).trim();
-
-              if (type === 'TIME') {
-                  const parts = content.split("|").map(s => s.trim());
-                  if (parts.length >= 3) {
-                     const wData: WidgetData = {
-                       type: 'time',
-                       data: {
-                         time: parts[0],
-                         date: parts[1],
-                         location: parts[2],
-                         timezone: parts[3] || ''
-                       }
-                     };
-                     capturedWidget = wData;
-                     onWidget(wData);
-                  }
-              } else if (type === 'WEATHER') {
-                  const wData: WidgetData = {
-                      type: 'weather',
-                      data: { location: content }
-                  };
-                  capturedWidget = wData;
-                  onWidget(wData);
-              } else if (type === 'STOCK') {
-                  const wData: WidgetData = {
-                      type: 'stock',
-                      data: { symbol: content }
-                  };
-                  capturedWidget = wData;
-                  onWidget(wData);
-              } else if (type === 'SLIDES') {
-                  try {
-                      const slidesData = JSON.parse(content);
-                      const wData: WidgetData = {
-                          type: 'slides',
-                          data: slidesData
-                      };
-                      capturedWidget = wData;
-                      onWidget(wData);
-                  } catch (e) {
-                      console.error("Failed to parse slides JSON", e);
-                  }
-              }
-              widgetParsed = true;
-          }
-        }
+      // Widget Logic
+      if (!widgetParsed && fullStreamText.includes("///") && fullStreamText.indexOf("///", fullStreamText.indexOf("///") + 3) !== -1) {
+         const start = fullStreamText.indexOf("///");
+         const end = fullStreamText.indexOf("///", start + 3);
+         const tag = fullStreamText.substring(start + 3, end);
+         if (tag.startsWith("WEATHER:")) {
+             capturedWidget = { type: 'weather', data: { location: tag.replace("WEATHER:", "").trim() } };
+             onWidget(capturedWidget);
+             widgetParsed = true;
+         } else if (tag.startsWith("STOCK:")) {
+             capturedWidget = { type: 'stock', data: { symbol: tag.replace("STOCK:", "").trim() } };
+             onWidget(capturedWidget);
+             widgetParsed = true;
+         } else if (tag.startsWith("SLIDES:")) {
+             try {
+                capturedWidget = { type: 'slides', data: JSON.parse(tag.replace("SLIDES:", "").trim()) };
+                onWidget(capturedWidget!);
+                widgetParsed = true;
+             } catch(e) {}
+         }
       }
 
-      // 2. Handle Related Questions (End of stream)
-      const relatedStartIndex = fullStreamText.indexOf("///RELATED:");
-      if (!relatedParsed && relatedStartIndex !== -1) {
-          const relatedEndIndex = fullStreamText.indexOf("///", relatedStartIndex + 11);
-          
-          if (relatedEndIndex !== -1) {
-              const jsonStr = fullStreamText.substring(relatedStartIndex + 11, relatedEndIndex).trim();
+      // Related Questions Logic
+      if (!relatedParsed && fullStreamText.includes("///RELATED:")) {
+          const start = fullStreamText.indexOf("///RELATED:");
+          const end = fullStreamText.indexOf("///", start + 11);
+          if (end !== -1) {
               try {
-                  const questions = JSON.parse(jsonStr);
-                  if (Array.isArray(questions)) {
-                      capturedRelatedQuestions = questions;
-                      onRelated(questions);
-                      relatedParsed = true;
-                  }
-              } catch (e) {
-                  console.error("Failed to parse related questions", e);
-              }
+                  const json = fullStreamText.substring(start + 11, end);
+                  const questions = JSON.parse(json);
+                  capturedRelatedQuestions = questions;
+                  onRelated(questions);
+                  relatedParsed = true;
+              } catch(e) {}
           }
       }
 
-      // 3. Determine what to send to onChunk
-      let contentToProcess = fullStreamText;
-      
-      // Strip widget tag if parsed
-      if (widgetParsed) {
-        const endTagIndex = fullStreamText.indexOf("///", 3);
-        if (endTagIndex !== -1) {
-            contentToProcess = fullStreamText.substring(endTagIndex + 3).trimStart();
-        }
-      } else if (fullStreamText.startsWith("///")) {
-         // Still buffering widget
-         if (fullStreamText.length < 200) return;
-      }
+      // Clean Output
+      let cleanText = fullStreamText;
+      if (widgetParsed) cleanText = cleanText.replace(/\/\/\/.*?\/\/\//s, "").trimStart();
+      if (relatedParsed) cleanText = cleanText.substring(0, cleanText.indexOf("///RELATED:")).trimEnd();
+      else if (cleanText.includes("///RELATED:")) cleanText = cleanText.substring(0, cleanText.indexOf("///RELATED:")).trimEnd();
 
-      // Strip related tag if present (parsed or not, we don't want to show it)
-      const currentRelatedIndex = contentToProcess.indexOf("///RELATED:");
-      if (currentRelatedIndex !== -1) {
-          contentToProcess = contentToProcess.substring(0, currentRelatedIndex).trimEnd();
-      }
-
-      onChunk(contentToProcess);
+      onChunk(cleanText);
     };
-    
-    // Function to handle stream completion
+
     const finishStream = () => {
-        if (onComplete) {
-            let finalText = fullStreamText;
-            
-            if (finalText.startsWith("///")) {
-                const endTagIndex = finalText.indexOf("///", 3);
-                if (endTagIndex !== -1) {
-                    finalText = finalText.substring(endTagIndex + 3).trimStart();
-                }
-            }
-            
-            const relIndex = finalText.indexOf("///RELATED:");
-            if (relIndex !== -1) {
-                finalText = finalText.substring(0, relIndex).trimEnd();
-            }
-            
-            onComplete(finalText, capturedWidget, capturedRelatedQuestions);
-        }
+        let final = fullStreamText;
+        if (widgetParsed) final = final.replace(/\/\/\/.*?\/\/\//s, "").trimStart();
+        if (final.includes("///RELATED:")) final = final.substring(0, final.indexOf("///RELATED:")).trimEnd();
+        if (onComplete) onComplete(final, capturedWidget, capturedRelatedQuestions);
     };
 
-    const isGroqModel = [
-        'openai/gpt-oss-120b', 
-        'moonshotai/kimi-k2-instruct-0905', 
-        'meta-llama/llama-4-maverick-17b-128e-instruct', 
-        'qwen/qwen3-32b'
-    ].includes(modelName);
+    const cleanHistory = history.filter(m => m.content && m.content.trim().length > 0);
 
-    // Prepare content object for OpenAI-compatible APIs (Groq/OpenRouter)
-    let messagesPayload: any[] = [
-        { role: "system", content: systemInstruction }
-    ];
+    // AUTO MODE ROUTING
+    let activeModelName = modelName;
+    if (activeModelName === 'auto') {
+        // No status message sent to onChunk, keeping UI clean (showing logo/loader)
+        const complexity = await classifyComplexity(prompt);
+        
+        let primaryModel = '';
+        let fallbackModel = '';
 
-    if (attachments.length > 0) {
-        const userContent: any[] = [{ type: "text", text: prompt }];
-        attachments.forEach(img => {
-            userContent.push({
-                type: "image_url",
-                image_url: { url: img }
-            });
-        });
-        messagesPayload.push({ role: "user", content: userContent });
-    } else {
-        messagesPayload.push({ role: "user", content: prompt });
+        if (complexity === 'HARD' || complexity === 'RESEARCH') {
+            // Hard/Research: Use GLM 4.7 (Cerebras) or Gemini 3
+            primaryModel = 'zai-glm-4.7';
+            fallbackModel = 'gemini-3-flash-preview'; 
+        } else if (complexity === 'MEDIUM') {
+            // Medium: Use Moonshot Kimi (Groq) or Llama 4
+            primaryModel = 'moonshot-v1';
+            fallbackModel = 'llama-4-scout';
+        } else {
+            // Normal: Use Llama 4 (Groq) or Gemini Flash
+            primaryModel = 'llama-4-scout';
+            fallbackModel = 'gemini-2.0-flash';
+        }
+
+        // Try Primary
+        try {
+            await invokeModelStream(primaryModel, prompt, cleanHistory, systemInstruction, processChunk);
+            finishStream();
+            return;
+        } catch (e) {
+            console.warn(`Primary model ${primaryModel} failed, falling back to ${fallbackModel}`, e);
+            // No error message sent to UI, just silently switch to fallback
+            activeModelName = fallbackModel; 
+        }
     }
 
-    if (isGroqModel) {
-        // Groq API Logic
-        let maxTokens = 4096;
-        let temperature = 0.6;
-        let reasoningEffort = undefined;
-        let topP = 0.95;
-
-        if (modelName === 'openai/gpt-oss-120b') {
-            maxTokens = 8192;
-            temperature = 1;
-            topP = 1;
-            reasoningEffort = isReasoningEnabled ? "high" : "medium"; // Use deep reasoning toggle
-        } else if (modelName === 'meta-llama/llama-4-maverick-17b-128e-instruct') {
-            maxTokens = 1024;
-            temperature = 1;
-            topP = 1;
-        } else if (modelName === 'moonshotai/kimi-k2-instruct-0905') {
-            maxTokens = 4096;
-            temperature = 0.6;
-            topP = 1;
-        } else if (modelName === 'qwen/qwen3-32b') {
-            maxTokens = 4096;
-            temperature = 0.6;
-            topP = 0.95;
-            reasoningEffort = "default";
-        }
-
-        try {
-          const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-             method: "POST",
-             headers: {
-               "Authorization": `Bearer ${GROQ_API_KEY}`,
-               "Content-Type": "application/json",
-             },
-             body: JSON.stringify({
-               model: modelName,
-               messages: messagesPayload,
-               stream: true,
-               temperature,
-               max_completion_tokens: maxTokens,
-               top_p: topP,
-               reasoning_effort: reasoningEffort 
-             })
-          });
-
-          if (!response.ok) {
-             const errText = await response.text().catch(() => "Unknown error");
-             throw new Error(`Groq API Error: ${response.status} - ${errText}`);
-          }
-
-          if (!response.body) throw new Error("No response body from Groq");
-      
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-            
-            for (const line of lines) {
-              const trimmedLine = line.trim();
-              if (!trimmedLine) continue;
-              if (trimmedLine.startsWith('data: ')) {
-                const dataStr = trimmedLine.slice(6);
-                if (dataStr === '[DONE]') continue;
-                try {
-                  const data = JSON.parse(dataStr);
-                  const content = data.choices[0]?.delta?.content || "";
-                  if (content) processChunk(content);
-                } catch (e) {}
-              }
-            }
-          }
-          finishStream();
-        } catch (fetchError: any) {
-           throw new Error(`Groq Connection Failed: ${fetchError.message}`);
-        }
-
-    } else if (modelName === 'xiaomi/mimo-v2-flash:free') {
-      // OpenRouter Logic for Mimo
-      let response;
-      try {
-        response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://impersio.ai", 
-            "X-Title": "Impersio" 
-          },
-          body: JSON.stringify({
-            model: modelName,
-            messages: messagesPayload,
-            stream: true,
-            streamOptions: {
-              includeUsage: true
-            }
-          })
-        });
-      } catch (e: any) {
-        throw new Error(`OpenRouter Connection Failed: ${e.message}`);
-      }
-
-      if (!response.ok) {
-        const errText = await response.text().catch(() => "");
-        throw new Error(`OpenRouter Error ${response.status}: ${errText}`);
-      }
-
-      if (!response.body) throw new Error("No response body from OpenRouter");
-      
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        
-        for (const line of lines) {
-          const trimmedLine = line.trim();
-          if (!trimmedLine) continue;
-          if (trimmedLine.startsWith('data: ')) {
-            const dataStr = trimmedLine.slice(6);
-            if (dataStr === '[DONE]') continue;
-            try {
-              const data = JSON.parse(dataStr);
-              const content = data.choices[0]?.delta?.content || "";
-              if (content) processChunk(content);
-            } catch (e) {}
-          }
-        }
-      }
-      finishStream();
-
-    } else {
-      // Gemini Logic
-      try {
-        const ai = getAiClient();
-        
-        let contentsPayload: any = prompt;
-        
-        if (attachments.length > 0) {
-            const parts: any[] = [{ text: prompt }];
-            attachments.forEach(img => {
-                const matches = img.match(/^data:([a-zA-Z0-9]+\/[a-zA-Z0-9-.+]+);base64,(.+)$/);
-                if (matches && matches.length === 3) {
-                    parts.push({ 
-                        inlineData: { 
-                            mimeType: matches[1], 
-                            data: matches[2] 
-                        } 
-                    });
-                }
-            });
-            contentsPayload = [{ role: 'user', parts }];
-        }
-
-        const result = await ai.models.generateContentStream({
-            model: modelName,
-            contents: contentsPayload,
-            config: {
-              systemInstruction: systemInstruction,
-              thinkingConfig: isReasoningEnabled ? { thinkingBudget: 1024 } : { thinkingBudget: 0 } 
-            }
-        });
-
-        for await (const chunk of result) {
-            const text = chunk.text || "";
-            processChunk(text);
-        }
+    // Direct Execution (or Fallback execution)
+    try {
+        await invokeModelStream(activeModelName, prompt, cleanHistory, systemInstruction, processChunk);
         finishStream();
-      } catch (error: any) {
-          if (error.status === 429 || error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
-              onChunk("⚠️ **Usage Limit Exceeded**\n\nThe AI model is currently unavailable due to high traffic (Quota Exceeded). Please try again in a minute or switch to a different model.");
-              return;
-          }
-          if (error.message?.includes("API key")) {
-              onChunk("⚠️ **API Key Error**\n\nThe Google Gemini API key is missing or invalid. Please check your configuration.");
-              return;
-          }
-          throw error;
-      }
+    } catch (e: any) {
+        console.error("Model execution failed", e);
+        onChunk(`\n\nError: ${e.message || "Failed to generate response."}`);
     }
 
   } catch (error: any) {
-    console.error("AI Error:", error);
-    onChunk(`**Connection Error**: ${error.message || "Failed to fetch response"}. \n\nPlease check your internet connection or try a different model.`);
+    onChunk("Error: " + error.message);
   }
 };
+
+// Helper function to invoke specific model logic
+const invokeModelStream = async (
+    modelId: string, 
+    prompt: string, 
+    history: Message[], 
+    systemInstruction: string, 
+    onChunk: (text: string) => void
+) => {
+
+    // GLM 4.7 (Cerebras)
+    if (modelId === 'zai-glm-4.7') {
+      const messages: CerebrasMessage[] = [
+        { role: 'system', content: systemInstruction },
+        ...history.map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        } as CerebrasMessage)),
+        { role: 'user', content: prompt }
+      ];
+      await streamCerebras(messages, 'zai-glm-4.7', onChunk);
+      return;
+    }
+
+    // DeepSeek R1 (OpenRouter)
+    if (modelId === 'deepseek-r1') {
+      const messages = [
+        { role: 'system', content: systemInstruction },
+        ...history.map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        })),
+        { role: 'user', content: prompt }
+      ];
+      await streamOpenRouter(messages, 'deepseek/deepseek-r1:free', onChunk);
+      return;
+    }
+
+    // Moonshot Kimi (Groq)
+    if (modelId === 'moonshot-v1') {
+      const messages = [
+        { role: 'system', content: systemInstruction },
+        ...history.map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        })),
+        { role: 'user', content: prompt }
+      ];
+      await streamGroq(messages, 'moonshotai/kimi-k2-instruct-0905', onChunk);
+      return;
+    }
+
+    // Llama 4 Scout (Groq)
+    if (modelId === 'llama-4-scout') {
+      const messages = [
+        { role: 'system', content: systemInstruction },
+        ...history.map(m => ({
+          role: m.role === 'assistant' ? 'assistant' : 'user',
+          content: m.content
+        })),
+        { role: 'user', content: prompt }
+      ];
+      await streamGroq(messages, 'meta-llama/llama-4-scout-17b-16e-instruct', onChunk);
+      return;
+    }
+
+    // Default: Gemini
+    const ai = getAiClient();
+    const messagesPayload = [
+        ...history.map(m => ({ 
+            role: m.role === 'assistant' ? 'model' : 'user', 
+            parts: [{ text: m.content }] 
+        })),
+        { role: 'user', parts: [{ text: prompt }] }
+    ];
+    
+    // Fallback to Flash if preview not available or error occurs
+    const targetModel = modelId.includes('gemini') ? modelId : 'gemini-2.0-flash';
+    
+    const result = await ai.models.generateContentStream({
+        model: targetModel,
+        contents: messagesPayload,
+        config: { 
+          systemInstruction, 
+          thinkingConfig: { thinkingBudget: 0 },
+          maxOutputTokens: 1000 
+        }
+    });
+    for await (

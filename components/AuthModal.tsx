@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../services/supabaseClient';
 import { X, Mail, Lock, Loader2, CheckCircle } from 'lucide-react';
@@ -82,8 +83,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
         {verificationSent ? (
           <div className="flex flex-col items-center text-center py-4">
-            <div className="w-16 h-16 bg-green-500/10 rounded-full flex items-center justify-center mb-4">
-              <CheckCircle className="w-8 h-8 text-green-500" />
+            <div className="w-16 h-16 bg-scira-accent/10 rounded-full flex items-center justify-center mb-4">
+              <CheckCircle className="w-8 h-8 text-scira-accent" />
             </div>
             <h2 className="text-2xl font-semibold text-primary mb-2">Check your email</h2>
             <p className="text-muted mb-6">

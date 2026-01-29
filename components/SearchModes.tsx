@@ -1,50 +1,48 @@
+
 import React from 'react';
-import { Video, FileText, CheckCircle, Zap, Image, Globe, Presentation } from 'lucide-react';
-import { XIcon, RedditIcon } from './Icons';
+import { Video, FileText, Globe } from 'lucide-react';
+import { RedditIcon, XIcon, TelescopeIcon } from './Icons';
 import { SearchMode } from '../types';
 
 interface SearchModesProps {
   activeMode: string | null;
   onSelect: (id: string) => void;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 const modes: SearchMode[] = [
-  { id: 'fast', label: 'Fast RAG', icon: Zap },
-  { id: 'web', label: 'Web', icon: Globe },
-  { id: 'images', label: 'Images', icon: Image },
-  { id: 'slides', label: 'Slides', icon: Presentation },
-  { id: 'x', label: 'X Search', icon: XIcon },
-  { id: 'reddit', label: 'Reddit Search', icon: RedditIcon },
-  { id: 'research', label: 'Research', icon: FileText, isDeep: true },
-  { id: 'videos', label: 'Videos', icon: Video },
-  { id: 'factcheck', label: 'Fact Check', icon: CheckCircle },
+  { id: 'web', label: 'All', icon: Globe },
+  { id: 'research', label: 'Academic', icon: FileText, isDeep: true },
+  { id: 'x', label: 'Social', icon: XIcon },
+  { id: 'videos', label: 'Video', icon: Video },
 ];
 
-export const SearchModes: React.FC<SearchModesProps> = ({ activeMode, onSelect }) => {
+export const SearchModes: React.FC<SearchModesProps> = ({ activeMode, onSelect, isOpen, onClose }) => {
+  if (!isOpen) return null;
+
   return (
-    <div className="flex flex-wrap items-center justify-center gap-2 animate-fade-in mt-4">
-      {modes.map((mode) => (
-        mode.id !== 'web' && ( // Skip 'web' here as it's the default toggle/implied
-        <button
-          key={mode.id}
-          onClick={() => onSelect(activeMode === mode.id ? 'web' : mode.id)}
-          className={`
-            flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-medium transition-all duration-200 border hover:scale-105 active:scale-95
-            ${activeMode === mode.id 
-              ? 'bg-scira-accent/10 text-scira-accent border-scira-accent/20' 
-              : 'bg-transparent text-muted hover:text-scira-accent border-transparent hover:bg-surface-hover hover:border-border'}
-          `}
-        >
-          <mode.icon className="w-3.5 h-3.5" />
-          <span>{mode.label}</span>
-          {mode.isDeep && (
-            <span className={`ml-1 px-1 py-0.5 rounded-[4px] text-[9px] font-bold tracking-wider uppercase ${activeMode === mode.id ? 'bg-scira-accent text-background' : 'bg-deep-badge-bg text-deep-badge-text'}`}>
-              DEEP
-            </span>
-          )}
-        </button>
-        )
-      ))}
+    <div className="absolute bottom-full left-0 mb-3 w-48 bg-[#1E1E1E] border border-border rounded-xl shadow-2xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-100">
+       <div className="px-3 py-2 text-xs font-medium text-muted border-b border-border/50 mb-1">
+          Focus
+       </div>
+       <div className="flex flex-col gap-0.5">
+          {modes.map((mode) => (
+            <button
+              key={mode.id}
+              onClick={() => {
+                onSelect(mode.id);
+                onClose();
+              }}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm text-left rounded-lg transition-colors
+                ${activeMode === mode.id ? 'bg-[#2A2A2A] text-white' : 'text-[#A0A0A0] hover:bg-[#2A2A2A] hover:text-white'}
+              `}
+            >
+              <mode.icon className="w-4 h-4" />
+              <span>{mode.label}</span>
+            </button>
+          ))}
+       </div>
     </div>
   );
 };

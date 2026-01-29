@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Download, Maximize2, X, Image as ImageIcon, Upload } from 'lucide-react';
 import { SlidesWidgetData } from '../types';
@@ -48,7 +47,7 @@ export const SlidesWidget: React.FC<SlidesWidgetProps> = ({ data }) => {
     const BG_COLOR = 'FFFFFF';
     const TEXT_COLOR = '333333';
     const TITLE_COLOR = '111111';
-    const ACCENT_COLOR = '1c7483'; // Updated to new brand accent
+    const ACCENT_COLOR = '20808D'; // True Turquoise
 
     // Helper to get image data (Base64 is safest for browser generation)
     const getImageDataForSlide = async (idx: number, url?: string) => {
@@ -242,7 +241,7 @@ export const SlidesWidget: React.FC<SlidesWidgetProps> = ({ data }) => {
                                     />
                                     <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                                         {currentSlide.chart.data.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#1c7483' : '#3f2510'} />
+                                            <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#20808D' : '#A84B2F'} />
                                         ))}
                                     </Bar>
                                 </BarChart>
@@ -269,81 +268,50 @@ export const SlidesWidget: React.FC<SlidesWidgetProps> = ({ data }) => {
     </div>
   );
 
-  if (isFullscreen) {
-    return (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col p-6 animate-in zoom-in-95 duration-200">
-             <div className="absolute top-4 right-4 flex gap-4 z-10">
-                 <button onClick={downloadPresentation} className="p-2 rounded-full bg-surface hover:bg-surface-hover text-primary transition-colors flex items-center gap-2 px-4 shadow-lg border border-border">
-                     <Download className="w-5 h-5" />
-                     <span className="text-sm font-medium">Download PPTX</span>
-                 </button>
-                 <button onClick={() => setIsFullscreen(false)} className="p-2 rounded-full bg-surface hover:bg-surface-hover text-primary transition-colors shadow-lg border border-border">
-                     <X className="w-5 h-5" />
-                 </button>
-             </div>
-             
-             <div className="flex-1 flex items-center justify-center max-w-7xl mx-auto w-full">
-                 <div className="w-full aspect-[16/9] bg-surface border border-border rounded-2xl relative shadow-2xl overflow-hidden">
-                    <RenderContent />
-                    
-                     {/* Controls */}
-                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex justify-between px-4 pointer-events-none">
-                        <button onClick={prevSlide} className="pointer-events-auto p-4 rounded-full bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-105 active:scale-95">
-                            <ChevronLeft className="w-8 h-8" />
-                        </button>
-                        <button onClick={nextSlide} className="pointer-events-auto p-4 rounded-full bg-black/50 hover:bg-black/70 text-white backdrop-blur-sm transition-all hover:scale-105 active:scale-95">
-                            <ChevronRight className="w-8 h-8" />
-                        </button>
-                    </div>
-                    
-                    <div className="absolute bottom-6 right-8 text-sm text-muted font-medium bg-background/90 px-3 py-1 rounded-full border border-border">
-                        {currentIndex + 1} / {data.slides.length}
-                    </div>
-                 </div>
-             </div>
-        </div>
-    );
-  }
-
   return (
-    <div className="w-full max-w-3xl mx-auto mb-8 bg-surface border border-border rounded-2xl overflow-hidden shadow-lg transition-all hover:shadow-xl group">
-      {/* Toolbar */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-surface-hover/30">
-         <div className="flex items-center gap-2">
-             <div className="w-3 h-3 rounded-full bg-red-500/80" />
-             <div className="w-3 h-3 rounded-full bg-yellow-500/80" />
-             <div className="w-3 h-3 rounded-full bg-green-500/80" />
-         </div>
-         <div className="text-xs font-semibold text-muted uppercase tracking-wider truncate max-w-[200px]">{data.title}</div>
-         <div className="flex items-center gap-1">
-             <button onClick={downloadPresentation} className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-background/50 transition-colors flex items-center gap-1.5 pr-2.5" title="Download PPTX">
-                 <Download className="w-4 h-4" />
-                 <span className="text-xs font-medium">PPTX</span>
-             </button>
-             <button onClick={() => setIsFullscreen(true)} className="p-1.5 rounded-lg text-muted hover:text-primary hover:bg-background/50 transition-colors" title="Fullscreen">
-                 <Maximize2 className="w-4 h-4" />
-             </button>
-         </div>
-      </div>
+    <div className={`
+        relative w-full max-w-3xl bg-surface border border-border rounded-2xl overflow-hidden mb-8 animate-fade-in transition-all duration-300
+        ${isFullscreen ? 'fixed inset-0 z-50 rounded-none max-w-none h-full' : 'aspect-video'}
+    `}>
+       {/* Toolbar */}
+       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+          <button 
+            onClick={downloadPresentation}
+            className="p-2 rounded-lg bg-surface/80 hover:bg-surface-hover backdrop-blur-sm text-muted hover:text-primary transition-colors border border-border/50"
+            title="Download PPT"
+          >
+            <Download className="w-4 h-4" />
+          </button>
+          <button 
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-2 rounded-lg bg-surface/80 hover:bg-surface-hover backdrop-blur-sm text-muted hover:text-primary transition-colors border border-border/50"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+          >
+            {isFullscreen ? <X className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+          </button>
+       </div>
 
-      {/* Slide Preview */}
-      <div className="aspect-[16/9] bg-background relative overflow-hidden group/preview">
-          <RenderContent />
-          
-          {/* Controls Overlay */}
-          <div className="absolute inset-0 flex items-center justify-between px-2 opacity-0 group-hover/preview:opacity-100 transition-opacity pointer-events-none">
-              <button onClick={prevSlide} className="pointer-events-auto p-2 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm transition-all hover:scale-110">
-                  <ChevronLeft className="w-5 h-5" />
-              </button>
-              <button onClick={nextSlide} className="pointer-events-auto p-2 rounded-full bg-black/20 hover:bg-black/40 text-white backdrop-blur-sm transition-all hover:scale-110">
-                  <ChevronRight className="w-5 h-5" />
-              </button>
-          </div>
-          
-          <div className="absolute bottom-3 right-4 text-[10px] text-muted font-medium bg-background/80 px-2 py-0.5 rounded-full border border-border">
+       {/* Slide Content */}
+       <RenderContent />
+
+       {/* Navigation */}
+       <div className="absolute bottom-4 left-0 right-0 z-20 flex justify-center items-center gap-4">
+           <button 
+             onClick={prevSlide}
+             className="p-2 rounded-full bg-surface/80 hover:bg-surface-hover backdrop-blur-sm text-primary transition-colors border border-border/50 shadow-sm"
+           >
+              <ChevronLeft className="w-5 h-5" />
+           </button>
+           <span className="text-sm font-medium text-primary/80 bg-surface/50 px-3 py-1 rounded-full backdrop-blur-sm select-none">
               {currentIndex + 1} / {data.slides.length}
-          </div>
-      </div>
+           </span>
+           <button 
+             onClick={nextSlide}
+             className="p-2 rounded-full bg-surface/80 hover:bg-surface-hover backdrop-blur-sm text-primary transition-colors border border-border/50 shadow-sm"
+           >
+              <ChevronRight className="w-5 h-5" />
+           </button>
+       </div>
     </div>
   );
 };

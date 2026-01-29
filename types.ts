@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface SearchMode {
@@ -62,6 +63,14 @@ export interface WidgetData {
   data: any; 
 }
 
+export interface ProSearchStep {
+  id: string;
+  title: string;
+  status: 'pending' | 'in-progress' | 'completed';
+  queries: string[];
+  sources: SearchResult[];
+}
+
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -69,4 +78,5 @@ export interface Message {
   images?: string[];
   widget?: WidgetData;
   relatedQuestions?: string[];
+  proSearchSteps?: ProSearchStep[];
 }
