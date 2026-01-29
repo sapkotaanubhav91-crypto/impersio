@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { SearchResult, WidgetData, Message, ProSearchStep } from "../types";
-import { searchWeb, searchFast } from './googleSearchService';
+import { searchFast } from './googleSearchService';
 import { streamCerebras, CerebrasMessage } from './cerebrasService';
 import { streamOpenRouter } from './openRouterService';
 import { streamGroq } from './groqService';
@@ -304,7 +304,16 @@ export const streamResponse = async (
 ): Promise<void> => {
   try {
     const now = new Date();
-    const currentDate = now.toLocaleDateString('en-US');
+    // Use a robust date format with time to prevent hallucinations
+    const currentDateTime = now.toLocaleString('en-US', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric', 
+        hour: '2-digit', 
+        minute: '2-digit',
+        timeZoneName: 'short' 
+    });
     const hasResults = searchResults.length > 0;
 
     // RAG: Format context for the model
@@ -348,7 +357,10 @@ export const streamResponse = async (
     Use inline citations [1], [2] rigorously.
     `;
 
-    const systemInstruction = `You are Impersio, a minimalist AI search engine. Date: ${currentDate}.
+    const systemInstruction = `You are Impersio, a minimalist AI search engine.
+    Current System Time: ${currentDateTime}.
+    
+    CRITICAL INSTRUCTION: For any questions about the current time or date, you MUST use the "Current System Time" provided above as your reference anchor. Calculate timezones relative to this time. Do not use your training data cutoff.
     
     ${isReasoningEnabled ? deepResearchInstructions : strictFormatInstructions}
 
@@ -565,8 +577,10 @@ const invokeModelStream = async (
         contents: messagesPayload,
         config: { 
           systemInstruction, 
-          thinkingConfig: { thinkingBudget: 0 },
           maxOutputTokens: 1000 
         }
     });
-    for await (
+    for await (const chunk of result) {
+        onChunk(chunk.text || "");
+    }
+};
