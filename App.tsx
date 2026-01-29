@@ -32,7 +32,7 @@ import { ModelSelector } from './components/ModelSelector';
 import { ProSearchLogger } from './components/ProSearchLogger';
 import { useTheme } from './hooks/useTheme';
 import { 
-  ImpersioLogo,
+  SciraLogo,
   CoffeeIcon,
   PenIcon,
   GraduationCapIcon,
@@ -56,7 +56,7 @@ const MODEL_OPTIONS: ModelOption[] = [
   { id: 'gpt-5.2', name: 'GPT 5.2', icon: CPUIcon },
 ];
 
-const STORAGE_KEY = 'impersio_chat_state';
+const STORAGE_KEY = 'scira_chat_state';
 
 interface MessageItemProps {
   msg: Message;
@@ -74,23 +74,23 @@ const MessageItem: React.FC<MessageItemProps> = ({
 
   if (!msg) return null;
 
-  // --- USER MESSAGE (Dark Pill, Right Aligned) ---
+  // --- USER MESSAGE (Clean, Right Aligned) ---
   if (msg.role === 'user') {
     return (
-      <div className="w-full max-w-3xl mx-auto py-6 px-4 animate-fade-in flex justify-end">
-          <div className="bg-[#1A1A1A] text-[#ECECEC] px-5 py-2.5 rounded-2xl text-[16px] leading-relaxed max-w-[85%] font-sans">
+      <div className="w-full max-w-3xl mx-auto py-6 px-4 flex justify-end">
+          <div className="bg-[#F4F4F5] dark:bg-[#27272A] text-primary px-5 py-2.5 rounded-2xl text-[15px] leading-relaxed max-w-[85%] font-sans">
              {msg.content}
           </div>
       </div>
     );
   }
 
-  // --- ASSISTANT MESSAGE (Serif, Left Aligned) ---
+  // --- ASSISTANT MESSAGE (Clean, Left Aligned) ---
   const sourceLimit = 4;
   const shownSources = msg.sources?.slice(0, sourceLimit) || [];
 
   return (
-      <div className="w-full max-w-3xl mx-auto pb-8 px-4 animate-fade-in flex flex-col gap-2">
+      <div className="w-full max-w-3xl mx-auto pb-8 px-4 flex flex-col gap-2">
         <div className="flex flex-col gap-2">
             
             {/* 1. Pro Search Status */}
@@ -100,7 +100,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                </div>
             )}
 
-            {/* 2. Sources (Elegant Pill) */}
+            {/* 2. Sources (Minimal) */}
             {msg.sources && msg.sources.length > 0 && (
                 <div className="mb-4">
                      <button 
@@ -109,44 +109,44 @@ const MessageItem: React.FC<MessageItemProps> = ({
                      >
                         <div className="flex -space-x-2">
                             {shownSources.slice(0, 3).map((s, i) => (
-                                <div key={i} className="w-5 h-5 rounded-full bg-surface border border-border overflow-hidden relative z-10 shadow-sm">
+                                <div key={i} className="w-4 h-4 rounded-full bg-surface border border-border overflow-hidden relative z-10 shadow-sm">
                                     <img 
                                     src={`https://www.google.com/s2/favicons?domain=${new URL(s.link).hostname}&sz=32`}
-                                    className="w-full h-full object-cover opacity-80"
+                                    className="w-full h-full object-cover"
                                     onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
                                     />
                                 </div>
                             ))}
                         </div>
-                        <span className="text-sm font-medium text-muted group-hover:text-primary transition-colors">
+                        <span className="text-xs font-medium text-muted group-hover:text-primary transition-colors">
                             {msg.sources.length} Sources
                         </span>
-                        <ChevronDown className={`w-3.5 h-3.5 text-muted transition-transform ${sourcesVisible ? 'rotate-180' : ''}`} />
+                        <ChevronDown className={`w-3 h-3 text-muted transition-transform ${sourcesVisible ? 'rotate-180' : ''}`} />
                      </button>
                      
                      {/* Expanded Sources Grid */}
                      {sourcesVisible && (
-                        <div className="grid grid-cols-2 gap-3 mt-4 animate-slide-up">
+                        <div className="grid grid-cols-2 gap-2 mt-3 animate-slide-up">
                             {msg.sources.map((source, idx) => (
                                 <a 
                                     key={idx}
                                     href={source.link}
                                     target="_blank"
                                     rel="noreferrer"
-                                    className="flex flex-col p-3 rounded-lg bg-surface hover:bg-surface-hover border border-border transition-all h-20 justify-between group shadow-sm hover:shadow-md"
+                                    className="flex flex-col p-2.5 rounded-lg bg-surface hover:bg-surface-hover border border-border transition-all h-16 justify-between group"
                                 >
-                                    <div className="text-xs font-semibold text-primary line-clamp-2 leading-tight font-sans">
+                                    <div className="text-[11px] font-medium text-primary line-clamp-2 leading-tight font-sans">
                                         {source.title}
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <div className="w-3 h-3 rounded-full bg-border/50 overflow-hidden">
+                                    <div className="flex items-center gap-1.5">
+                                        <div className="w-2.5 h-2.5 rounded-full bg-border/50 overflow-hidden">
                                             <img 
                                                 src={`https://www.google.com/s2/favicons?domain=${new URL(source.link).hostname}&sz=32`}
                                                 className="w-full h-full object-cover"
                                                 onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
                                             />
                                         </div>
-                                        <div className="text-[10px] text-muted truncate font-sans">{source.displayLink}</div>
+                                        <div className="text-[9px] text-muted truncate font-sans opacity-70">{source.displayLink}</div>
                                     </div>
                                 </a>
                             ))}
@@ -158,12 +158,14 @@ const MessageItem: React.FC<MessageItemProps> = ({
             {/* 3. Thinking Indicator */}
             {isLoading && isLast && !msg.content && (!msg.proSearchSteps || msg.proSearchSteps.length === 0) && (
                <div className="flex items-center gap-3 mb-6 animate-pulse">
-                  <ImpersioLogo className="w-6 h-6 text-scira-accent animate-spin-slow" />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                </div>
             )}
 
-            {/* 4. Main Content (Serif) */}
-            <div className="min-h-[20px] font-serif text-lg leading-relaxed text-[#ECECEC]">
+            {/* 4. Main Content (Sans Serif) */}
+            <div className="min-h-[20px] font-sans text-[15px] leading-relaxed text-primary">
                 <MessageContent 
                   content={msg.content} 
                   isStreaming={isLast && isLoading} 
@@ -182,18 +184,12 @@ const MessageItem: React.FC<MessageItemProps> = ({
             )}
 
             {/* 6. Action Bar */}
-            <div className="flex items-center gap-2 mt-4">
+            <div className="flex items-center gap-2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Copy">
-                    <Copy className="w-4 h-4" />
-                </button>
-                <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Good response">
-                    <ThumbsUp className="w-4 h-4" />
-                </button>
-                <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Bad response">
-                    <ThumbsDown className="w-4 h-4" />
+                    <Copy className="w-3.5 h-3.5" />
                 </button>
                 <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Retry">
-                    <RotateCcw className="w-4 h-4" />
+                    <RotateCcw className="w-3.5 h-3.5" />
                 </button>
             </div>
         </div>
@@ -237,14 +233,6 @@ export default function App() {
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
   
   const { theme, setTheme } = useTheme();
-
-  // Dynamic Greeting Logic
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Morning";
-    if (hour < 18) return "Afternoon";
-    return "Evening";
-  };
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -302,7 +290,6 @@ export default function App() {
   }, [messages.length]); 
 
   const getModelId = (id: string) => {
-    // Model ID Mapping
     switch(id) {
       case 'auto': return 'auto';
       case 'deepseek-r1': return 'deepseek-r1';
@@ -368,13 +355,11 @@ export default function App() {
         }]);
 
         // INTELLIGENT SEARCH ROUTING
-        // Check if we actually need to search
         const needsSearch = await shouldSearch(finalQuery);
         
         let allSources: SearchResult[] = [];
         
         if (needsSearch) {
-             // Default to fast search for now, can implement toggle logic
              const searchResult = await searchFast(finalQuery);
              if (searchResult && searchResult.results) {
                  allSources = searchResult.results;
@@ -466,40 +451,33 @@ export default function App() {
   const renderInputBar = (isInitial: boolean) => (
     <div className={`w-full ${isInitial ? 'max-w-2xl' : 'max-w-3xl'} mx-auto relative z-30 transition-all duration-500`}>
       <div className={`
-        relative flex flex-col w-full bg-[#1F1F1F]
-        rounded-[20px]
-        border border-[#333]
+        relative flex flex-col w-full bg-[#FAFAFA] dark:bg-[#202020]
+        rounded-[26px]
+        border border-black/5 dark:border-white/10
         shadow-sm transition-all duration-300
         overflow-visible
         group
-        ${isInitial ? 'min-h-[140px]' : ''}
+        ${isInitial ? 'min-h-[140px] hover:shadow-md' : ''}
       `}>
-         <div className="flex flex-col px-4 py-3 h-full">
+         <div className="flex flex-col px-5 py-4 h-full">
              <textarea
                 ref={textareaRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder={isInitial ? "How can I help you today?" : "Reply..."}
-                className={`w-full bg-transparent text-[#E0E0E0] placeholder-[#666] text-[16px] font-sans font-normal px-0 focus:outline-none resize-none overflow-hidden mt-1`}
+                placeholder={isInitial ? "Ask anything..." : "Reply..."}
+                className={`w-full bg-transparent text-primary placeholder-muted/60 text-[16px] font-sans font-normal px-0 focus:outline-none resize-none overflow-hidden mt-1`}
                 style={{ minHeight: '28px' }}
                 rows={1}
                 autoFocus={isInitial && !isMobile}
               />
               
-              <div className={`flex items-center justify-between mt-auto pt-3 ${isInitial ? 'absolute bottom-3 left-4 right-4' : ''}`}>
+              <div className={`flex items-center justify-between mt-auto pt-3 ${isInitial ? 'absolute bottom-3 left-5 right-5' : ''}`}>
                  {/* Left Actions */}
                  <div className="flex items-center gap-2">
-                     <button className="text-[#888] hover:text-[#E0E0E0] transition-colors" title="Attach">
+                     <button className="text-muted hover:text-primary transition-colors p-2 hover:bg-black/5 dark:hover:bg-white/5 rounded-full" title="Attach">
                          <Plus className="w-5 h-5" strokeWidth={2} />
                      </button>
-                     <button className="text-[#888] hover:text-[#E0E0E0] transition-colors" title="History">
-                         <Clock className="w-5 h-5" strokeWidth={2} />
-                     </button>
-                 </div>
-
-                 {/* Right Actions */}
-                 <div className="flex items-center gap-3">
                      <ModelSelector
                         selectedModel={selectedModel}
                         models={MODEL_OPTIONS}
@@ -507,10 +485,14 @@ export default function App() {
                         isOpen={isModelSelectorOpen}
                         onToggle={() => setIsModelSelectorOpen(!isModelSelectorOpen)}
                      />
+                 </div>
+
+                 {/* Right Actions */}
+                 <div className="flex items-center gap-3">
                      <button 
                         onClick={() => handleSearch()}
                         disabled={!query.trim() && attachments.length === 0}
-                        className={`flex items-center justify-center w-8 h-8 rounded-lg transition-all duration-200 ${query.trim() ? 'bg-scira-accent text-white' : 'bg-[#333] text-[#666]'}`}
+                        className={`flex items-center justify-center w-8 h-8 rounded-full transition-all duration-200 ${query.trim() ? 'bg-primary text-background' : 'bg-black/5 dark:bg-white/10 text-muted'}`}
                      >
                         <ArrowUp className="w-5 h-5" strokeWidth={2.5} />
                      </button>
@@ -520,7 +502,7 @@ export default function App() {
           
           {/* Autocomplete Suggestions */}
           {suggestions.length > 0 && query.trim().length > 0 && (
-             <div className="absolute top-full left-0 right-0 mt-2 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in mx-0 p-1">
+             <div className="absolute top-full left-0 right-0 mt-2 bg-surface border border-border rounded-xl shadow-xl overflow-hidden z-50 animate-fade-in mx-2 p-1">
                 {suggestions.map((suggestion, index) => (
                    <button
                       key={index}
@@ -528,10 +510,10 @@ export default function App() {
                          setQuery(suggestion);
                          handleSearch(suggestion);
                       }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-[#2A2A2A] rounded-lg transition-colors group"
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-surface-hover rounded-lg transition-colors group"
                    >
-                      <Search className="w-4 h-4 text-muted group-hover:text-primary transition-colors" />
-                      <span className="text-sm font-medium text-primary font-sans">{suggestion}</span>
+                      <Search className="w-3.5 h-3.5 text-muted group-hover:text-primary transition-colors" />
+                      <span className="text-sm text-primary font-sans">{suggestion}</span>
                    </button>
                 ))}
              </div>
@@ -541,7 +523,7 @@ export default function App() {
   );
 
   return (
-    <div className={`min-h-screen bg-background text-primary font-sans selection:bg-scira-accent/20 flex flex-row overflow-hidden`}>
+    <div className={`min-h-screen bg-background text-primary font-sans selection:bg-black/10 dark:selection:bg-white/20 flex flex-row overflow-hidden`}>
       <AppSidebar 
         currentView={view} 
         onNavigate={setView}
@@ -576,40 +558,29 @@ export default function App() {
               {!hasSearched ? (
                 <div className="flex flex-col items-center justify-center p-4 w-full h-full animate-fade-in max-w-4xl mx-auto">
                     
-                    {/* Badge */}
-                    <div className="mb-8 bg-[#1A1A1A] border border-[#333] rounded-full px-4 py-1.5 flex items-center gap-2">
-                       <span className="text-xs text-[#999] font-medium">Free plan</span>
-                       <span className="text-xs text-[#555]">•</span>
-                       <button className="text-xs text-[#999] hover:text-white transition-colors underline decoration-[#555] underline-offset-2">Upgrade</button>
-                    </div>
-
-                    {/* Greeting */}
-                    <div className="w-full max-w-2xl mb-12 flex flex-col items-center text-center">
-                      <div className="flex items-center gap-4 mb-2">
-                         <ImpersioLogo className="w-8 h-8 text-scira-accent animate-spin-slow" />
-                         <h1 className="text-5xl md:text-6xl font-normal text-[#EBEBEB] font-serif tracking-tight">
-                            {getGreeting()}, {user?.email ? user.email.split('@')[0] : 'Anubhav'}
-                         </h1>
-                      </div>
+                    {/* Minimal Branding */}
+                    <div className="w-full max-w-2xl mb-12 flex flex-col items-center text-center gap-6">
+                         <div className="w-16 h-16 bg-primary text-background rounded-2xl flex items-center justify-center shadow-lg">
+                             <SciraLogo className="w-10 h-10" />
+                         </div>
                     </div>
 
                     {/* Input */}
                     {renderInputBar(true)}
 
-                    {/* Pills */}
-                    <div className="flex flex-wrap justify-center gap-3 mt-8 max-w-2xl">
+                    {/* Minimal Pills */}
+                    <div className="flex flex-wrap justify-center gap-2 mt-8 max-w-xl">
                        {[
                          { icon: CodeIcon, label: 'Code' },
-                         { icon: GraduationCapIcon, label: 'Learn' },
-                         { icon: TrendingUpIcon, label: 'Strategize' },
+                         { icon: TrendingUpIcon, label: 'Analyze' },
                          { icon: PenIcon, label: 'Write' },
-                         { icon: CoffeeIcon, label: 'Life stuff' },
+                         { icon: SparklesIcon, label: 'Create' },
                        ].map((item, idx) => (
                           <button 
                             key={idx}
-                            className="flex items-center gap-2 px-4 py-2 bg-[#1A1A1A] border border-[#333] hover:bg-[#252525] rounded-xl text-sm text-[#999] hover:text-white transition-all font-medium"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border hover:border-primary/20 hover:bg-surface-hover rounded-full text-xs text-muted hover:text-primary transition-all font-medium"
                           >
-                             <item.icon className="w-4 h-4" />
+                             <item.icon className="w-3.5 h-3.5" />
                              {item.label}
                           </button>
                        ))}
@@ -637,9 +608,6 @@ export default function App() {
                     <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background to-transparent pt-12 pb-8 z-20 px-4">
                       <div className="max-w-3xl mx-auto">
                           {renderInputBar(false)}
-                          <div className="text-center mt-3 text-xs text-[#444]">
-                             Claude is AI and can make mistakes. Please double-check responses.
-                          </div>
                       </div>
                     </div>
                 </div>

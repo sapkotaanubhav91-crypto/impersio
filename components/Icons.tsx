@@ -1,18 +1,15 @@
 
 import React from 'react';
 
-export const ImpersioLogo = ({ className }: { className?: string }) => (
-  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    {/* Left Loop */}
-    <rect x="3.5" y="3" width="10" height="18" rx="5" />
-    {/* Right Loop (Overlapping) */}
-    <path d="M14.5 21C17.5 21 20.5 18.5 20.5 12C20.5 5.5 17.5 3 14.5 3" />
-    <path d="M14.5 3C13.5 3 12.5 3.5 11.5 4" /> 
-    <path d="M14.5 21C13.5 21 12.5 20.5 11.5 20" />
-    {/* Dot */}
-    <circle cx="8.5" cy="8" r="1.5" fill="currentColor" stroke="none" />
+export const SciraLogo = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" className={className}>
+    <path d="M12 2L15 9H21L16 13L18 20L12 16L6 20L8 13L3 9H9L12 2Z" fillRule="evenodd"/>
+    <circle cx="12" cy="12" r="3" fill="var(--bg-primary)" />
   </svg>
 );
+
+// Retaining ImpersioLogo as fallback/legacy but SciraLogo is primary now
+export const ImpersioLogo = SciraLogo;
 
 export const GLMIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>
@@ -62,8 +59,6 @@ export const SparklesIcon = ({ className }: { className?: string }) => (
     <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" />
   </svg>
 );
-
-// --- Existing Icons Below ---
 
 export const PerplexityLogo = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="currentColor" className={className}>

@@ -4,14 +4,13 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
-    <title>Impersio</title>
-    <meta name="description" content="Impersio is a minimalist AI search engine." />
+    <title>Scira</title>
+    <meta name="description" content="Scira is a minimalist AI search engine." />
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%23DA7756' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z' /%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' /%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
     <script>
       tailwind.config = {
         darkMode: 'class',
@@ -19,7 +18,6 @@
           extend: {
             fontFamily: {
               sans: ['Inter', 'system-ui', 'sans-serif'],
-              serif: ['"Instrument Serif"', 'Georgia', 'serif'],
             },
             colors: {
               background: 'var(--bg-primary)', 
@@ -55,33 +53,33 @@
       }
     </script>
     <style>
-      /* Claude Classic Design Tokens */
+      /* Scira Minimalist Design Tokens */
       :root {
-        /* Light Mode: Warm Paper */
-        --bg-primary: #FAF8F5;      
-        --bg-secondary: #F0F0F0;    
+        /* Light Mode */
+        --bg-primary: #FFFFFF;      
+        --bg-secondary: #F7F7F8;    
         --surface: #FFFFFF;         
-        --surface-hover: #F2F0E9;
-        --text-primary: #1A1A1A;    
-        --text-secondary: #6E6E6E;  
-        --accent-primary: #DA7756;  /* Terracotta Starburst */
-        --accent-hover: #C36040;
-        --border: #E5E5E5;          
-        --bubble-user: #F0F0F0;
+        --surface-hover: #F4F4F5;
+        --text-primary: #09090B;    
+        --text-secondary: #71717A;  
+        --accent-primary: #000000;  
+        --accent-hover: #27272A;
+        --border: #E4E4E7;          
+        --bubble-user: #F4F4F5;
       }
       
       .dark {
-        /* Dark Mode: Full Black & Deep Charcoal */
-        --bg-primary: #000000;      /* Full Black Background */
-        --bg-secondary: #121212;    /* Sidebar/Inputs */
-        --surface: #181818;         /* Cards */
-        --surface-hover: #222222;
-        --text-primary: #ECECEC;    
-        --text-secondary: #909090;  
-        --accent-primary: #DA7756;  /* Same warm accent */
-        --accent-hover: #E8886A;
-        --border: #262626;
-        --bubble-user: #1A1A1A;     /* Specific dark bubble for user */
+        /* Dark Mode */
+        --bg-primary: #09090B;      
+        --bg-secondary: #121212;    
+        --surface: #18181B;         
+        --surface-hover: #27272A;
+        --text-primary: #FAFAFA;    
+        --text-secondary: #A1A1AA;  
+        --accent-primary: #FFFFFF;  
+        --accent-hover: #E4E4E7;
+        --border: #27272A;
+        --bubble-user: #18181B;     
       }
 
       body {
@@ -89,7 +87,7 @@
         color: var(--text-primary);
         font-family: 'Inter', sans-serif;
         -webkit-font-smoothing: antialiased;
-        letter-spacing: -0.01em;
+        letter-spacing: -0.015em;
       }
 
       ::-webkit-scrollbar {
@@ -104,39 +102,32 @@
         border-radius: 9999px;
       }
       
-      /* Typography overrides for that editorial feel */
       .markdown-body {
-        line-height: 1.7; 
-        font-size: 16px; 
+        line-height: 1.6; 
+        font-size: 15px; 
         color: var(--text-primary);
       }
       
       .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-        font-family: 'Instrument Serif', serif;
-        font-weight: 400;
+        font-weight: 500;
         margin-top: 1.5rem;
         margin-bottom: 0.75rem;
+        letter-spacing: -0.02em;
       }
       
       .markdown-body p {
         margin-bottom: 1rem;
-        font-family: 'Instrument Serif', serif; /* Serif body text for AI */
-        font-size: 1.1rem;
-        line-height: 1.6;
+        font-size: 1rem;
+        line-height: 1.7;
       }
 
       .markdown-body strong {
         font-weight: 600;
         color: var(--text-primary);
       }
-
-      /* Specific adjustments for sans-serif UI elements */
-      .font-sans {
-        font-family: 'Inter', sans-serif !important;
-      }
       
       ::selection {
-        background: rgba(218, 119, 86, 0.3);
+        background: rgba(255, 255, 255, 0.2);
         color: inherit;
       }
     </style>

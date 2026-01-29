@@ -2,22 +2,24 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SearchResult, WidgetData, Message, ProSearchStep } from "../types";
 import { searchFast } from './googleSearchService';
-import { streamCerebras, CerebrasMessage } from './cerebrasService';
-import { streamOpenRouter } from './openRouterService';
-import { streamGroq } from './groqService';
 
-// Safe access to environment variable
+// Robust API Key Retrieval
 const getApiKey = () => {
-    try {
-        if (typeof process !== 'undefined' && process.env) {
-            return process.env.API_KEY;
-        }
-    } catch (e) {}
+    // 1. Check process.env (injected by Vite define)
+    if (typeof process !== 'undefined' && process.env) {
+        if (process.env.API_KEY) return process.env.API_KEY;
+        if (process.env.GOOGLE_API_KEY) return process.env.GOOGLE_API_KEY;
+    }
+    // 2. Fallback to import.meta.env (standard Vite)
+    if (typeof import.meta !== 'undefined' && (import.meta as any).env) {
+        if ((import.meta as any).env.VITE_API_KEY) return (import.meta as any).env.VITE_API_KEY;
+        if ((import.meta as any).env.VITE_GOOGLE_API_KEY) return (import.meta as any).env.VITE_GOOGLE_API_KEY;
+        if ((import.meta as any).env.GOOGLE_API_KEY) return (import.meta as any).env.GOOGLE_API_KEY;
+    }
     return undefined;
 };
 
-// Initialize with a dummy key if missing to prevent immediate crash, 
-// actual calls will check for validity or fail gracefully.
+// Initialize with a safe fallback to prevent crash on load, but requests will fail if key is invalid
 const getAiClient = () => {
     const key = getApiKey();
     return new GoogleGenAI({ apiKey: key || "dummy_key_for_init" });
@@ -32,7 +34,7 @@ export const shouldSearch = async (query: string): Promise<boolean> => {
     
     try {
         const key = getApiKey();
-        if (!key) return true; // Default to search if no AI key for classification
+        if (!key) return true; 
         
         const ai = getAiClient();
         const response = await ai.models.generateContent({
@@ -59,37 +61,6 @@ export const shouldSearch = async (query: string): Promise<boolean> => {
     } catch(e) {
         return true;
     }
-};
-
-const classifyComplexity = async (query: string): Promise<'NORMAL' | 'MEDIUM' | 'HARD' | 'RESEARCH'> => {
-  try {
-      const ai = getAiClient();
-      const response = await ai.models.generateContent({
-          model: 'gemini-2.0-flash',
-          contents: `Classify the complexity/type of this user query.
-          
-          Query: "${query}"
-          
-          Definitions:
-          - NORMAL: Simple greetings, factual questions, simple calculations, quick summaries.
-          - MEDIUM: Creative writing, nuanced explanations, code debugging, comparison.
-          - HARD: Complex reasoning, math proofs, advanced coding, multi-step analysis.
-          - RESEARCH: Deep dive topics, academic questions, history, detailed reports, extensive data lookup.
-          
-          Return JSON: { "complexity": "NORMAL" | "MEDIUM" | "HARD" | "RESEARCH" }`,
-          config: {
-              responseMimeType: "application/json",
-              responseSchema: {
-                  type: Type.OBJECT,
-                  properties: { complexity: { type: Type.STRING, enum: ['NORMAL', 'MEDIUM', 'HARD', 'RESEARCH'] } }
-              }
-          }
-      });
-      const result = JSON.parse(response.text || "{}");
-      return result.complexity || 'NORMAL';
-  } catch(e) {
-      return 'NORMAL';
-  }
 };
 
 // --- Pro Search Helpers ---
@@ -226,52 +197,11 @@ export const orchestrateProSearch = async (
     );
 };
 
-// --- Existing Functions (Preserved & Updated) ---
+// --- Existing Functions ---
 
 export const generateManualQueries = (prompt: string): string[] => {
     const base = prompt.trim();
     return [base, `${base} latest news`, `${base} analysis`, `${base} key details`];
-};
-
-export const rewriteQuery = async (currentQuery: string, history: Message[]): Promise<string> => {
-    if (history.length === 0) return currentQuery;
-    try {
-        const ai = getAiClient();
-        const recentHistory = history.slice(-2)
-            .filter(m => m && m.role && m.content)
-            .map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n');
-            
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash', 
-            contents: `Rewrite the USER'S LAST QUERY into a standalone Google search query based on history.
-HISTORY:
-${recentHistory}
-USER'S LAST QUERY:
-"${currentQuery}"
-REWRITTEN QUERY:`,
-            config: { maxOutputTokens: 30, temperature: 0 }
-        });
-        return response.text?.trim() || currentQuery;
-    } catch (e) {
-        return currentQuery;
-    }
-};
-
-export const generateSearchQueries = async (prompt: string): Promise<string[]> => {
-  try {
-    const ai = getAiClient();
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.0-flash', 
-      contents: `Generate 5 high-value Google search queries for: "${prompt}". Return JSON array of strings.`,
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: { type: Type.ARRAY, items: { type: Type.STRING } }
-      }
-    });
-    return JSON.parse(response.text || "[]");
-  } catch (e) {
-    return [prompt];
-  }
 };
 
 export const streamResponse = async (
@@ -287,6 +217,15 @@ export const streamResponse = async (
   onRelated: (questions: string[]) => void,
   onComplete?: (fullContent: string, widget: WidgetData | undefined, relatedQuestions: string[]) => void
 ): Promise<void> => {
+  const apiKey = getApiKey();
+  
+  if (!apiKey) {
+      onChunk("⚠️ **Configuration Error**: API Key is missing.\n\nPlease add `GOOGLE_API_KEY` to your environment variables.");
+      return;
+  }
+
+  const ai = getAiClient();
+  
   try {
     const now = new Date();
     const currentDateTime = now.toLocaleString('en-US', { 
@@ -300,227 +239,111 @@ export const streamResponse = async (
         : "No external context provided. Rely on internal knowledge.";
 
     const strictFormatInstructions = `
-    FORMATTING RULES (STRICT - MEDIUM LENGTH):
-    1. **Length Guidelines**: 
-       - **Target Range**: 250-500 words for explanations, guides, and analysis.
-       - **Simple Queries**: 200-300 words (Facts + 1 example/context).
-       - **Complex Queries**: 350-500 words (Intro, 3-5 key sections, conclusion/tips).
-    2. **Structure & Visuals**: 
-       - **Opening**: Start directly with a concise answer/summary.
-       - **Headers**: Use ### Headers to break down topics clearly.
-       - **Lists**: Use bullet points (*) heavily for readability.
-       - **Tables**: MUST generate a Markdown table for comparisons, pros/cons, or data specs when relevant.
-       - **Sentences**: Keep sentences concise (15-25 words).
-    3. **Content**:
-       - **Substance**: Explain *why* and *how*, don't just list facts.
-       - **Examples**: Include brief examples where helpful.
-    4. **Citations (CRITICAL)**:
-       - You MUST use the provided [CITATION] index for every fact retrieved.
-       - Format: "The sky is blue [1]."
-       - Citations go at the end of the sentence or clause.
-    5. **Tone**: Objective, journalistic, and informative.
+    FORMATTING RULES (STRICT):
+    1. **Structure**: Start directly with the answer. Use ### Headers for sections.
+    2. **Citations**: You MUST use inline citations like [1], [2] when referencing the provided context.
+    3. **Tone**: Objective, professional, yet conversational.
+    4. **Date**: Today is ${currentDateTime}.
     `;
 
-    const deepResearchInstructions = `
-    MODE: DEEP RESEARCH REPORT
-    GOAL: Comprehensive analysis with RAG (Retrieval Augmented Generation).
+    const fullPrompt = `
+    System Prompt:
+    You are Scira, a minimalist AI search engine designed for clarity and truth.
+    ${strictFormatInstructions}
     
-    STRUCTURE:
-    - Executive Summary
-    - Detailed Analysis (### Headers)
-    - Key Findings (Bulleted)
-    - Conclusion
-    
-    Use inline citations [1], [2] rigorously.
-    `;
-
-    const systemInstruction = `You are Impersio, a minimalist AI search engine.
-    Current System Time: ${currentDateTime}.
-    
-    CRITICAL INSTRUCTION: For any questions about the current time or date, you MUST use the "Current System Time" provided above as your reference anchor. Calculate timezones relative to this time. Do not use your training data cutoff.
-    
-    ${isReasoningEnabled ? deepResearchInstructions : strictFormatInstructions}
-
-    RAG CONTEXT (Use these sources to answer):
+    Context from Search:
     ${ragContext}
 
-    GUIDELINES:
-    - Answer the user's query directly using the RAG CONTEXT.
-    - If the user greeting (hi, hello), just respond politely and briefly.
-    - **Repetition Ban**: Generate each fact once.
+    User Query: ${prompt}
     
-    WIDGETS (Only if requested):
-    - ///WEATHER: Location///
-    - ///STOCK: Symbol///
-    - ///SLIDES: JSON///
-    
-    RELATED QUESTIONS:
-    At the end, output: ///RELATED: ["Q1", "Q2", "Q3"]///
+    Answer:
     `;
 
-    let fullStreamText = "";
-    let widgetParsed = false;
-    let relatedParsed = false;
-    let capturedWidget: WidgetData | undefined = undefined;
-    let capturedRelatedQuestions: string[] = [];
-
-    const processChunk = (text: string) => {
-      fullStreamText += text;
-      
-      if (!widgetParsed && fullStreamText.includes("///") && fullStreamText.indexOf("///", fullStreamText.indexOf("///") + 3) !== -1) {
-         const start = fullStreamText.indexOf("///");
-         const end = fullStreamText.indexOf("///", start + 3);
-         const tag = fullStreamText.substring(start + 3, end);
-         if (tag.startsWith("WEATHER:")) {
-             capturedWidget = { type: 'weather', data: { location: tag.replace("WEATHER:", "").trim() } };
-             onWidget(capturedWidget);
-             widgetParsed = true;
-         } else if (tag.startsWith("STOCK:")) {
-             capturedWidget = { type: 'stock', data: { symbol: tag.replace("STOCK:", "").trim() } };
-             onWidget(capturedWidget);
-             widgetParsed = true;
-         } else if (tag.startsWith("SLIDES:")) {
-             try {
-                capturedWidget = { type: 'slides', data: JSON.parse(tag.replace("SLIDES:", "").trim()) };
-                onWidget(capturedWidget!);
-                widgetParsed = true;
-             } catch(e) {}
-         }
-      }
-
-      if (!relatedParsed && fullStreamText.includes("///RELATED:")) {
-          const start = fullStreamText.indexOf("///RELATED:");
-          const end = fullStreamText.indexOf("///", start + 11);
-          if (end !== -1) {
-              try {
-                  const json = fullStreamText.substring(start + 11, end);
-                  const questions = JSON.parse(json);
-                  capturedRelatedQuestions = questions;
-                  onRelated(questions);
-                  relatedParsed = true;
-              } catch(e) {}
-          }
-      }
-
-      let cleanText = fullStreamText;
-      if (widgetParsed) cleanText = cleanText.replace(/\/\/\/.*?\/\/\//s, "").trimStart();
-      if (relatedParsed) cleanText = cleanText.substring(0, cleanText.indexOf("///RELATED:")).trimEnd();
-      else if (cleanText.includes("///RELATED:")) cleanText = cleanText.substring(0, cleanText.indexOf("///RELATED:")).trimEnd();
-
-      onChunk(cleanText);
-    };
-
-    const finishStream = () => {
-        let final = fullStreamText;
-        if (widgetParsed) final = final.replace(/\/\/\/.*?\/\/\//s, "").trimStart();
-        if (final.includes("///RELATED:")) final = final.substring(0, final.indexOf("///RELATED:")).trimEnd();
-        if (onComplete) onComplete(final, capturedWidget, capturedRelatedQuestions);
-    };
-
-    const cleanHistory = history.filter(m => m.content && m.content.trim().length > 0);
-
-    let activeModelName = modelName;
-    if (activeModelName === 'auto') {
-        const complexity = await classifyComplexity(prompt);
-        // Default to Groq models for simple tasks if keys exist, else Gemini
-        if (complexity === 'HARD' || complexity === 'RESEARCH') {
-            activeModelName = 'gemini-3-flash-preview'; 
-        } else {
-            activeModelName = 'llama-4-scout';
-        }
-    }
-
-    // Attempt Execution with robust Fallback
-    try {
-        await invokeModelStream(activeModelName, prompt, cleanHistory, systemInstruction, processChunk);
-        finishStream();
-    } catch (e: any) {
-        console.warn(`Primary Model ${activeModelName} failed. Falling back to Gemini.`, e);
-        try {
-            // Fallback to Gemini 2.0 Flash
-            await invokeModelStream('gemini-2.0-flash', prompt, cleanHistory, systemInstruction, processChunk);
-            finishStream();
-        } catch (fallbackError: any) {
-            console.error("Fallback failed", fallbackError);
-            onChunk(`\n\nI encountered an issue generating the response. Please check your internet connection or try again later. (Error: ${fallbackError.message})`);
-        }
-    }
-
-  } catch (error: any) {
-    onChunk("System Error: " + error.message);
-  }
-};
-
-const invokeModelStream = async (
-    modelId: string, 
-    prompt: string, 
-    history: Message[], 
-    systemInstruction: string, 
-    onChunk: (text: string) => void
-) => {
-
-    if (modelId === 'zai-glm-4.7') {
-      const messages: CerebrasMessage[] = [
-        { role: 'system', content: systemInstruction },
-        ...history.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content } as CerebrasMessage)),
-        { role: 'user', content: prompt }
-      ];
-      await streamCerebras(messages, 'zai-glm-4.7', onChunk);
-      return;
-    }
-
-    if (modelId === 'deepseek-r1') {
-      const messages = [
-        { role: 'system', content: systemInstruction },
-        ...history.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-        { role: 'user', content: prompt }
-      ];
-      await streamOpenRouter(messages, 'deepseek/deepseek-r1:free', onChunk);
-      return;
-    }
-
-    if (modelId === 'moonshot-v1') {
-      const messages = [
-        { role: 'system', content: systemInstruction },
-        ...history.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-        { role: 'user', content: prompt }
-      ];
-      await streamGroq(messages, 'moonshotai/kimi-k2-instruct-0905', onChunk);
-      return;
-    }
-
-    if (modelId === 'llama-4-scout') {
-      const messages = [
-        { role: 'system', content: systemInstruction },
-        ...history.map(m => ({ role: m.role === 'assistant' ? 'assistant' : 'user', content: m.content })),
-        { role: 'user', content: prompt }
-      ];
-      await streamGroq(messages, 'meta-llama/llama-4-scout-17b-16e-instruct', onChunk);
-      return;
-    }
-
-    // Default: Gemini
-    const ai = getAiClient();
-    const messagesPayload = [
-        ...history.map(m => ({ 
-            role: m.role === 'assistant' ? 'model' : 'user', 
-            parts: [{ text: m.content }] 
-        })),
-        { role: 'user', parts: [{ text: prompt }] }
-    ];
+    let contentsParts: any[] = [{ text: fullPrompt }];
     
-    // Normalize model name for Gemini
-    const targetModel = modelId.includes('gemini') ? modelId : 'gemini-2.0-flash';
-    
+    if (attachments && attachments.length > 0) {
+        const imageParts = attachments.map(att => {
+            const base64Data = att.split(',')[1];
+            const mimeType = att.substring(att.indexOf(':') + 1, att.indexOf(';'));
+            return {
+                inlineData: {
+                    mimeType: mimeType,
+                    data: base64Data
+                }
+            };
+        });
+        contentsParts = [...imageParts, { text: fullPrompt }];
+    }
+
     const result = await ai.models.generateContentStream({
-        model: targetModel,
-        contents: messagesPayload,
-        config: { 
-          systemInstruction, 
-          maxOutputTokens: 1000 
+        model: modelName.includes('gemini') ? modelName : 'gemini-2.0-flash',
+        contents: [
+            { role: 'user', parts: contentsParts }
+        ],
+        config: {
+            temperature: 0.7,
+            maxOutputTokens: 4000,
         }
     });
+
+    let fullText = "";
+    
     for await (const chunk of result) {
-        onChunk(chunk.text || "");
+        const text = chunk.text;
+        if (text) {
+            fullText += text;
+            onChunk(fullText);
+        }
     }
+
+    // Attempt to generate a widget if relevant
+    try {
+       const lowerPrompt = prompt.toLowerCase();
+       let widget: WidgetData | undefined = undefined;
+
+       if (lowerPrompt.includes('weather') && !lowerPrompt.includes('explain')) {
+           widget = { type: 'weather', data: { location: prompt.replace('weather', '').trim() || 'New York' } };
+       } else if (lowerPrompt.includes('stock') || lowerPrompt.includes('price of')) {
+           const symbol = prompt.split(' ').pop()?.toUpperCase() || 'AAPL';
+           widget = { type: 'stock', data: { symbol } };
+       } else if (lowerPrompt.includes('time in')) {
+           widget = { type: 'time', data: { 
+               time: new Date().toLocaleTimeString(), 
+               date: new Date().toLocaleDateString(),
+               location: prompt.replace('time in', '').trim(),
+               timezone: 'Local'
+           }};
+       }
+
+       if (widget) {
+           onWidget(widget);
+       }
+
+       if (fullText.length > 100) {
+            onRelated([
+                `More about ${prompt}`,
+                `Latest news`,
+                `Deep dive analysis`
+            ]);
+       }
+       
+       if (onComplete) onComplete(fullText, widget, []);
+
+    } catch (err) {
+        console.error("Widget generation error", err);
+    }
+
+  } catch (e: any) {
+    console.error("Gemini API Error:", e);
+    
+    let userMessage = `I encountered an error: ${e.message || "Unknown error"}`;
+    
+    if (e.message?.includes("API_KEY_INVALID") || e.message?.includes("API key not valid")) {
+        userMessage = "⚠️ **Access Denied**: The API Key provided is invalid.\n\nPlease check your Environment Variables and ensure `GOOGLE_API_KEY` is set correctly.";
+    } else if (e.message?.includes("429")) {
+        userMessage = "⚠️ **Rate Limit Exceeded**: We're receiving too many requests. Please try again in a moment.";
+    }
+
+    onChunk(userMessage);
+  }
 };
