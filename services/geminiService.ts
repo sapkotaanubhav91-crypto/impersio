@@ -2,6 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { SearchResult, WidgetData, Message, ProSearchStep } from "../types";
 import { searchFast } from './googleSearchService';
+import { streamGroq } from './groqService';
+import { streamOpenRouter } from './openRouterService';
 
 // Safe access to environment variable following guidelines
 const getApiKey = () => {
@@ -11,23 +13,12 @@ const getApiKey = () => {
     if (viteKey && viteKey.length > 0) {
         return viteKey;
     }
-    
-    // 2. Legacy/Fallback checks (e.g. if running in a non-Vite environment that polyfills process)
-    try {
-        if (typeof process !== 'undefined' && process.env?.API_KEY) {
-            return process.env.API_KEY;
-        }
-    } catch (e) {}
-
     return undefined;
 };
 
 // Initialize with a dummy key if missing to prevent immediate crash.
-// The actual calls will check for validity or fail gracefully with a user-friendly message.
 const getAiClient = () => {
     const key = getApiKey();
-    // If no key is found, use a placeholder. This will cause a 400 error from Google
-    // which we catch in streamResponse to show a "Missing API Key" message.
     return new GoogleGenAI({ apiKey: key || "dummy_key_for_init" });
 };
 
@@ -40,7 +31,7 @@ export const shouldSearch = async (query: string): Promise<boolean> => {
     
     try {
         const key = getApiKey();
-        if (!key) return true; // Default to search if no AI key for classification
+        if (!key) return true; // Default to search if no AI key
         
         const ai = getAiClient();
         const response = await ai.models.generateContent({
@@ -234,48 +225,110 @@ export const streamResponse = async (
   onRelated: (questions: string[]) => void,
   onComplete?: (fullContent: string, widget: WidgetData | undefined, relatedQuestions: string[]) => void
 ): Promise<void> => {
-  const apiKey = getApiKey();
   
+  // RAG Context Construction
+  const now = new Date();
+  const currentDateTime = now.toLocaleString('en-US', { 
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
+      hour: '2-digit', minute: '2-digit', timeZoneName: 'short' 
+  });
+  const hasResults = searchResults.length > 0;
+
+  const ragContext = hasResults 
+      ? searchResults.map((r, i) => `CITATION [${i+1}] ${r.title}\nURL: ${r.link}\nCONTENT: ${r.snippet}`).join('\n\n')
+      : "No external context provided. Rely on internal knowledge.";
+
+  const strictFormatInstructions = `
+  FORMATTING RULES (STRICT):
+  1. **Structure**: Start directly with the answer. Use ### Headers for sections.
+  2. **Citations**: You MUST use inline citations like [1], [2] when referencing the provided context.
+  3. **Tone**: Objective, professional, yet conversational.
+  4. **Date**: Today is ${currentDateTime}.
+  `;
+
+  const fullPrompt = `
+  System Prompt:
+  You are Impersio, a high-intelligence search assistant.
+  ${strictFormatInstructions}
+  
+  Context from Search:
+  ${ragContext}
+
+  User Query: ${prompt}
+  
+  Answer:
+  `;
+
+  // --- ROUTING LOGIC ---
+  
+  // 1. Kimi, GLM, Moonshot -> OpenRouter directly
+  if (modelName.includes('zhipu') || modelName.includes('moonshot') || modelName.includes('glm')) {
+      try {
+          const messages = [{ role: 'user', content: fullPrompt }];
+          let fullText = "";
+          await streamOpenRouter(messages, modelName, (chunk) => {
+              fullText += chunk;
+              onChunk(fullText);
+          });
+          if (onComplete) onComplete(fullText, undefined, []);
+          return;
+      } catch (err: any) {
+          console.error("OpenRouter Error:", err);
+          onChunk(`⚠️ Error with ${modelName}: ${err.message}`);
+          return;
+      }
+  }
+
+  // 2. GROQ Routing (Llama models) with OpenRouter Fallback
+  if (modelName.includes('llama') || modelName.includes('mixtral')) {
+      try {
+          // Construct Groq messages
+          const messages = [{ role: 'user', content: fullPrompt }];
+          let fullText = "";
+          await streamGroq(messages, modelName, (chunk) => {
+              fullText += chunk;
+              onChunk(fullText);
+          });
+          
+          if (onComplete) onComplete(fullText, undefined, []);
+          return;
+      } catch (err: any) {
+          console.warn("Groq API failed, attempting OpenRouter fallback:", err.message);
+          
+          // Fallback to OpenRouter Llama 3.3
+          try {
+             onChunk("\n\n*Switching to backup provider...*\n\n");
+             const messages = [{ role: 'user', content: fullPrompt }];
+             let fullText = "";
+             // Use the free Llama 3.3 endpoint on OpenRouter as requested
+             const fallbackModel = "meta-llama/llama-3.3-70b-instruct:free";
+             
+             await streamOpenRouter(messages, fallbackModel, (chunk) => {
+                fullText += chunk;
+                onChunk(fullText);
+             });
+             
+             if (onComplete) onComplete(fullText, undefined, []);
+             return;
+
+          } catch (fallbackErr: any) {
+             console.error("OpenRouter Fallback failed:", fallbackErr);
+             onChunk(`⚠️ All providers failed. Groq: ${err.message}. OpenRouter: ${fallbackErr.message}`);
+             return;
+          }
+      }
+  }
+
+  // 3. GEMINI Routing (Default)
+  const apiKey = getApiKey();
   if (!apiKey || apiKey === "dummy_key_for_init") {
-      onChunk("⚠️ **Configuration Error**: API Key is missing.\n\nPlease add `GOOGLE_API_KEY` to your environment variables in your deployment settings (e.g., Vercel, Netlify) or `.env` file.");
+      onChunk("⚠️ **Configuration Error**: Google API Key is missing.\n\nPlease add `GOOGLE_API_KEY` to your environment variables.");
       return;
   }
 
   const ai = getAiClient();
   
   try {
-    const now = new Date();
-    const currentDateTime = now.toLocaleString('en-US', { 
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', 
-        hour: '2-digit', minute: '2-digit', timeZoneName: 'short' 
-    });
-    const hasResults = searchResults.length > 0;
-
-    const ragContext = hasResults 
-        ? searchResults.map((r, i) => `CITATION [${i+1}] ${r.title}\nURL: ${r.link}\nCONTENT: ${r.snippet}`).join('\n\n')
-        : "No external context provided. Rely on internal knowledge.";
-
-    const strictFormatInstructions = `
-    FORMATTING RULES (STRICT):
-    1. **Structure**: Start directly with the answer. Use ### Headers for sections.
-    2. **Citations**: You MUST use inline citations like [1], [2] when referencing the provided context.
-    3. **Tone**: Objective, professional, yet conversational.
-    4. **Date**: Today is ${currentDateTime}.
-    `;
-
-    const fullPrompt = `
-    System Prompt:
-    You are Impersio, a high-intelligence search assistant.
-    ${strictFormatInstructions}
-    
-    Context from Search:
-    ${ragContext}
-
-    User Query: ${prompt}
-    
-    Answer:
-    `;
-
     // Construct request contents
     let contentsParts: any[] = [{ text: fullPrompt }];
     
@@ -296,7 +349,7 @@ export const streamResponse = async (
     }
 
     const result = await ai.models.generateContentStream({
-        model: modelName.includes('gemini') ? modelName : 'gemini-2.0-flash', // Fallback to gemini if custom model ID
+        model: modelName.includes('gemini') ? modelName : 'gemini-2.0-flash', 
         contents: [
             { role: 'user', parts: contentsParts }
         ],
@@ -309,14 +362,14 @@ export const streamResponse = async (
     let fullText = "";
     
     for await (const chunk of result) {
-        const text = chunk.text; // Use property access, not method call
+        const text = chunk.text;
         if (text) {
             fullText += text;
             onChunk(fullText);
         }
     }
 
-    // Attempt to generate a widget if relevant
+    // Widget & Related Questions Logic (Client-side heuristics for now)
     try {
        const lowerPrompt = prompt.toLowerCase();
        let widget: WidgetData | undefined = undefined;
@@ -324,7 +377,6 @@ export const streamResponse = async (
        if (lowerPrompt.includes('weather') && !lowerPrompt.includes('explain')) {
            widget = { type: 'weather', data: { location: prompt.replace('weather', '').trim() || 'New York' } };
        } else if (lowerPrompt.includes('stock') || lowerPrompt.includes('price of')) {
-           // Simple heuristic extraction for stocks
            const symbol = prompt.split(' ').pop()?.toUpperCase() || 'AAPL';
            widget = { type: 'stock', data: { symbol } };
        } else if (lowerPrompt.includes('time in')) {
@@ -340,7 +392,6 @@ export const streamResponse = async (
            onWidget(widget);
        }
 
-       // Generate related questions (simple logic or separate call)
        if (fullText.length > 100) {
             onRelated([
                 `More about ${prompt}`,
@@ -359,10 +410,8 @@ export const streamResponse = async (
     console.error("Gemini API Error:", e);
     
     let errorMsg = e.message || "";
-    // Attempt to extract message from JSON error if possible
     if (errorMsg.includes('{')) {
         try {
-            // Find JSON part
             const match = errorMsg.match(/\{.*\}/s);
             if (match) {
                 const json = JSON.parse(match[0]);
@@ -374,7 +423,7 @@ export const streamResponse = async (
     let userMessage = `I encountered an error: ${errorMsg}`;
     
     if (errorMsg.includes("API_KEY_INVALID") || errorMsg.includes("API key not valid")) {
-        userMessage = "⚠️ **Access Denied**: The API Key provided is invalid or missing.\n\nPlease check your deployment settings (Environment Variables) and ensure `GOOGLE_API_KEY` is set correctly.";
+        userMessage = "⚠️ **Access Denied**: The API Key provided is invalid or missing.";
     } else if (errorMsg.includes("429")) {
         userMessage = "⚠️ **Rate Limit Exceeded**: We're receiving too many requests. Please try again in a moment.";
     }

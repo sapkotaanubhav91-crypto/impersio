@@ -2,7 +2,6 @@
 // Use environment variable for key, do not hardcode.
 const getGroqApiKey = () => {
     // Vite 'define' replaces this with the string value.
-    // Checking typeof process !== 'undefined' causes failure in browsers.
     const key = process.env.GROQ_API_KEY;
     if (key && key.length > 0) return key;
     return undefined;
@@ -16,9 +15,7 @@ export const streamGroq = async (
   const apiKey = getGroqApiKey();
   
   if (!apiKey) {
-    // Silent fail or fallback depending on orchestrator
-    // Throwing allows the fallback logic to kick in
-    throw new Error("Groq API Key not configured. Triggering fallback.");
+    throw new Error("Groq API Key not configured. Please add GROQ_API_KEY to your env.");
   }
 
   try {
@@ -79,8 +76,7 @@ export const streamGroq = async (
       }
     }
   } catch (error: any) {
-    console.warn('Groq Streaming Error (Attempting Fallback):', error.message);
-    // Rethrow to allow fallback logic in orchestrator
+    console.warn('Groq Streaming Error:', error.message);
     throw error;
   }
 };

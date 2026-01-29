@@ -35,22 +35,15 @@ import {
   GraduationCapIcon,
   TrendingUpIcon,
   CodeIcon,
-  CPUIcon,
-  KimiIcon,
-  SparklesIcon
+  CPUIcon
 } from './components/Icons';
 
 const MODEL_OPTIONS: ModelOption[] = [
-  { id: 'auto', name: 'Auto Mode', icon: SparklesIcon },
-  { id: 'deepseek-r1', name: 'DeepSeek R1', icon: CPUIcon },
-  { id: 'moonshot-v1', name: 'Moonshot Kimi', icon: KimiIcon },
-  { id: 'llama-4-scout', name: 'Llama 4 Scout', icon: CPUIcon },
-  { id: 'claude-sonnet-4.5', name: 'Sonnet 4.5', icon: CPUIcon },
-  { id: 'claude-opus-4.5', name: 'Opus 4.5', icon: CPUIcon },
-  { id: 'gemini-3-flash', name: 'Gemini 3 Flash', icon: CPUIcon },
-  { id: 'gemini-3-pro', name: 'Gemini 3 Pro', icon: CPUIcon },
-  { id: 'zai-glm-4.7', name: 'GLM 4.7', icon: CPUIcon },
-  { id: 'gpt-5.2', name: 'GPT 5.2', icon: CPUIcon },
+  { id: 'llama-3.3-70b-versatile', name: 'Llama 3.3', icon: CPUIcon },
+  { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', icon: CPUIcon },
+  { id: 'zhipu/glm-4-flash', name: 'GLM 4.7', icon: CPUIcon },
+  { id: 'moonshot/moonshot-v1-8k', name: 'Kimi K1.5', icon: CPUIcon },
+  { id: 'mixtral-8x7b-32768', name: 'Mixtral', icon: CPUIcon },
 ];
 
 const STORAGE_KEY = 'impersio_chat_state';
@@ -235,7 +228,6 @@ export default function App() {
   
   const { theme, setTheme } = useTheme();
 
-  // Initialize Local User
   useEffect(() => {
     const checkUser = () => {
         const localUser = localStorage.getItem('impersio_local_user');
@@ -246,12 +238,10 @@ export default function App() {
         }
     };
     checkUser();
-    // Helper to detect logout from other tabs or components
     window.addEventListener('storage', checkUser);
     return () => window.removeEventListener('storage', checkUser);
   }, []);
 
-  // Dynamic Greeting Logic
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return "Morning";
@@ -302,20 +292,6 @@ export default function App() {
     }
   }, [messages.length]); 
 
-  const getModelId = (id: string) => {
-    // Model ID Mapping
-    switch(id) {
-      case 'auto': return 'auto';
-      case 'deepseek-r1': return 'deepseek-r1';
-      case 'moonshot-v1': return 'moonshot-v1';
-      case 'llama-4-scout': return 'llama-4-scout';
-      case 'gemini-3-flash': return 'gemini-3-flash-preview'; 
-      case 'gemini-3-pro': return 'gemini-3-flash-preview'; 
-      case 'zai-glm-4.7': return 'zai-glm-4.7';
-      default: return 'gemini-3-flash-preview';
-    }
-  };
-
   const cycleTheme = () => {
     setTheme(prev => {
       if (prev === 'system') return 'light';
@@ -358,7 +334,7 @@ export default function App() {
         await saveMessage(currentConversationId, 'user', finalQuery, { images: currentAttachments });
     }
 
-    const modelId = getModelId(selectedModel.id);
+    const modelId = selectedModel.id;
     
     try {
         setMessages(prev => [...prev, { 
@@ -368,14 +344,11 @@ export default function App() {
             proSearchSteps: []
         }]);
 
-        // INTELLIGENT SEARCH ROUTING
-        // Check if we actually need to search
         const needsSearch = await shouldSearch(finalQuery);
         
         let allSources: SearchResult[] = [];
         
         if (needsSearch) {
-             // Default to fast search for now, can implement toggle logic
              const searchResult = await searchFast(finalQuery);
              if (searchResult && searchResult.results) {
                  allSources = searchResult.results;
@@ -489,7 +462,6 @@ export default function App() {
               />
               
               <div className={`flex items-center justify-between mt-auto pt-3 ${isInitial ? 'absolute bottom-3 left-4 right-4' : ''}`}>
-                 {/* Left Actions */}
                  <div className="flex items-center gap-2">
                      <button className="text-[#888] hover:text-[#E0E0E0] transition-colors" title="Attach">
                          <Plus className="w-5 h-5" strokeWidth={2} />
@@ -499,7 +471,6 @@ export default function App() {
                      </button>
                  </div>
 
-                 {/* Right Actions */}
                  <div className="flex items-center gap-3">
                      <ModelSelector
                         selectedModel={selectedModel}
@@ -519,7 +490,6 @@ export default function App() {
               </div>
          </div>
           
-          {/* Autocomplete Suggestions */}
           {suggestions.length > 0 && query.trim().length > 0 && (
              <div className="absolute top-full left-0 right-0 mt-2 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl overflow-hidden z-50 animate-fade-in mx-0 p-1">
                 {suggestions.map((suggestion, index) => (
@@ -577,14 +547,12 @@ export default function App() {
               {!hasSearched ? (
                 <div className="flex flex-col items-center justify-center p-4 w-full h-full animate-fade-in max-w-4xl mx-auto">
                     
-                    {/* Badge */}
                     <div className="mb-8 bg-[#1A1A1A] border border-[#333] rounded-full px-4 py-1.5 flex items-center gap-2">
                        <span className="text-xs text-[#999] font-medium">Free plan</span>
                        <span className="text-xs text-[#555]">•</span>
                        <button className="text-xs text-[#999] hover:text-white transition-colors underline decoration-[#555] underline-offset-2">Upgrade</button>
                     </div>
 
-                    {/* Greeting */}
                     <div className="w-full max-w-2xl mb-12 flex flex-col items-center text-center">
                       <div className="flex items-center gap-4 mb-2">
                          <ImpersioLogo className="w-8 h-8 text-scira-accent animate-spin-slow" />
@@ -594,10 +562,8 @@ export default function App() {
                       </div>
                     </div>
 
-                    {/* Input */}
                     {renderInputBar(true)}
 
-                    {/* Pills */}
                     <div className="flex flex-wrap justify-center gap-3 mt-8 max-w-2xl">
                        {[
                          { icon: CodeIcon, label: 'Code' },
@@ -618,7 +584,6 @@ export default function App() {
                 </div>
               ) : (
                 <div className="flex-1 flex flex-col relative h-full">
-                    {/* Chat History */}
                     <div className="flex-1 overflow-y-auto pb-40 pt-6 px-4 md:px-0 scroll-smooth">
                       <div className="flex flex-col w-full"> 
                         {messages.map((msg, idx) => (
@@ -634,12 +599,11 @@ export default function App() {
                       </div>
                     </div>
                     
-                    {/* Fixed Input Area */}
                     <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background to-transparent pt-12 pb-8 z-20 px-4">
                       <div className="max-w-3xl mx-auto">
                           {renderInputBar(false)}
                           <div className="text-center mt-3 text-xs text-[#444]">
-                             Claude is AI and can make mistakes. Please double-check responses.
+                             Llama 3.3 (Preview) can make mistakes. Please double-check responses.
                           </div>
                       </div>
                     </div>
