@@ -10,7 +10,14 @@ import {
   ArrowUp,
   Clock,
   Search,
-  BrainCircuit
+  BrainCircuit,
+  Share,
+  Download,
+  Check,
+  X,
+  FileText,
+  File,
+  MoreHorizontal
 } from 'lucide-react';
 import { streamResponse, orchestrateProSearch, shouldSearch } from './services/geminiService';
 import { searchFast, getSuggestions } from './services/googleSearchService';
@@ -49,6 +56,65 @@ const MODEL_OPTIONS: ModelOption[] = [
 
 const STORAGE_KEY = 'impersio_chat_state';
 
+interface FeedbackModalProps {
+  type: 'up' | 'down';
+  onClose: () => void;
+  onSubmit: (reasons: string[]) => void;
+}
+
+const FeedbackModal: React.FC<FeedbackModalProps> = ({ type, onClose, onSubmit }) => {
+  const [selected, setSelected] = useState<string[]>([]);
+  const options = type === 'up' 
+    ? ['Up to date', 'Accurate', 'Helpful', 'Followed instructions', 'Good sources', 'Other...']
+    : ['Out of date', 'Inaccurate', 'Wrong sources', 'Too long', 'Too short', 'Other...'];
+
+  const toggleOption = (opt: string) => {
+    setSelected(prev => prev.includes(opt) ? prev.filter(p => p !== opt) : [...prev, opt]);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+       <div className="bg-[#1F1F1F] border border-[#333] rounded-xl p-5 w-full max-w-md m-4 shadow-2xl animate-in zoom-in-95 duration-200">
+          <div className="flex justify-between items-start mb-4">
+             <h3 className="text-[#ECECEC] font-medium text-lg">
+                {type === 'up' ? 'What did you like about this response?' : "What didn't you like about this response?"}
+                <span className="text-[#888] text-sm ml-2 font-normal">(optional)</span>
+             </h3>
+             <button onClick={onClose} className="text-[#888] hover:text-[#ECECEC]">
+               <X className="w-5 h-5" />
+             </button>
+          </div>
+          
+          <div className="grid grid-cols-2 gap-3 mb-6">
+             {options.map(opt => (
+                <button
+                  key={opt}
+                  onClick={() => toggleOption(opt)}
+                  className={`px-4 py-2.5 rounded-lg text-sm font-medium transition-all text-center border ${
+                    selected.includes(opt) 
+                    ? 'bg-scira-accent/20 text-scira-accent border-scira-accent' 
+                    : 'bg-[#2A2A2A] text-[#BBB] border-transparent hover:bg-[#333] hover:text-white'
+                  }`}
+                >
+                   {opt}
+                </button>
+             ))}
+          </div>
+          
+          <div className="flex justify-end gap-3">
+             <button onClick={onClose} className="px-4 py-2 text-sm text-[#888] hover:text-white transition-colors">Skip</button>
+             <button 
+                onClick={() => { onSubmit(selected); onClose(); }}
+                className="px-6 py-2 bg-scira-accent hover:bg-scira-accent-hover text-white text-sm font-medium rounded-lg transition-colors"
+             >
+                Submit Feedback
+             </button>
+          </div>
+       </div>
+    </div>
+  );
+};
+
 interface MessageItemProps {
   msg: Message;
   isLast: boolean;
@@ -62,10 +128,100 @@ const MessageItem: React.FC<MessageItemProps> = ({
   isLoading, 
 }) => {
   const [sourcesVisible, setSourcesVisible] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'up' | 'down' | null>(null);
+  const [isDownloadOpen, setIsDownloadOpen] = useState(false);
+  const downloadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (downloadRef.current && !downloadRef.current.contains(event.target as Node)) {
+        setIsDownloadOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(msg.content);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Impersio Chat',
+          text: msg.content,
+        });
+      } catch (err) {
+        console.log('Share failed', err);
+      }
+    } else {
+      handleCopy();
+      alert('Link copied to clipboard');
+    }
+  };
+
+  const handleDownload = (format: 'pdf' | 'md' | 'docx') => {
+      const content = msg.content;
+      
+      if (format === 'md') {
+          const blob = new Blob([content], { type: 'text/markdown' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = 'impersio-chat.md';
+          a.click();
+          URL.revokeObjectURL(url);
+      } else if (format === 'pdf') {
+          // Simple Print to PDF strategy for no-library environments
+          const printWindow = window.open('', '', 'width=800,height=600');
+          if (printWindow) {
+              printWindow.document.write(`
+                <html>
+                  <head>
+                    <title>Impersio Chat Export</title>
+                    <style>
+                      body { font-family: sans-serif; line-height: 1.6; padding: 40px; max-width: 800px; margin: 0 auto; }
+                      h1, h2, h3 { color: #1a1a1a; }
+                      p { margin-bottom: 1em; color: #333; }
+                      code { background: #f0f0f0; padding: 2px 4px; border-radius: 4px; }
+                      pre { background: #f0f0f0; padding: 15px; border-radius: 8px; overflow-x: auto; }
+                    </style>
+                  </head>
+                  <body>
+                    ${content.replace(/\n/g, '<br>')}
+                  </body>
+                </html>
+              `);
+              printWindow.document.close();
+              printWindow.focus();
+              printWindow.print();
+              printWindow.close();
+          }
+      } else if (format === 'docx') {
+           // Simple HTML doc strategy
+           const header = "<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>Export HTML To Doc</title></head><body>";
+           const footer = "</body></html>";
+           const sourceHTML = header + content.replace(/\n/g, '<br>') + footer;
+           
+           const source = 'data:application/vnd.ms-word;charset=utf-8,' + encodeURIComponent(sourceHTML);
+           const fileDownload = document.createElement("a");
+           document.body.appendChild(fileDownload);
+           fileDownload.href = source;
+           fileDownload.download = 'impersio-chat.doc';
+           fileDownload.click();
+           document.body.removeChild(fileDownload);
+      }
+      setIsDownloadOpen(false);
+  };
 
   if (!msg) return null;
 
-  // --- USER MESSAGE (Dark Pill, Right Aligned) ---
+  // --- USER MESSAGE ---
   if (msg.role === 'user') {
     return (
       <div className="w-full max-w-3xl mx-auto py-6 px-4 animate-fade-in flex justify-end">
@@ -76,22 +232,31 @@ const MessageItem: React.FC<MessageItemProps> = ({
     );
   }
 
-  // --- ASSISTANT MESSAGE (Serif, Left Aligned) ---
+  // --- ASSISTANT MESSAGE ---
   const sourceLimit = 4;
   const shownSources = msg.sources?.slice(0, sourceLimit) || [];
 
   return (
-      <div className="w-full max-w-3xl mx-auto pb-8 px-4 animate-fade-in flex flex-col gap-2">
+      <div className="w-full max-w-3xl mx-auto pb-8 px-4 animate-fade-in flex flex-col gap-2 relative group/msg">
+        
+        {feedbackType && (
+            <FeedbackModal 
+                type={feedbackType} 
+                onClose={() => setFeedbackType(null)} 
+                onSubmit={(reasons) => console.log('Feedback:', reasons)} 
+            />
+        )}
+
         <div className="flex flex-col gap-2">
             
-            {/* 1. Pro Search Status (Deep Research Thinking) */}
+            {/* 1. Pro Search Status */}
             {msg.proSearchSteps && msg.proSearchSteps.length > 0 && (
                <div className="mb-4">
                  <ProSearchLogger steps={msg.proSearchSteps} />
                </div>
             )}
 
-            {/* 2. Sources (Elegant Pill) */}
+            {/* 2. Sources */}
             {msg.sources && msg.sources.length > 0 && (
                 <div className="mb-4">
                      <button 
@@ -115,7 +280,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
                         <ChevronDown className={`w-3.5 h-3.5 text-muted transition-transform ${sourcesVisible ? 'rotate-180' : ''}`} />
                      </button>
                      
-                     {/* Expanded Sources Grid */}
                      {sourcesVisible && (
                         <div className="grid grid-cols-2 gap-3 mt-4 animate-slide-up">
                             {msg.sources.map((source, idx) => (
@@ -146,14 +310,14 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 </div>
             )}
 
-            {/* 3. Thinking Indicator (Standard) */}
+            {/* 3. Thinking Indicator */}
             {isLoading && isLast && !msg.content && (!msg.proSearchSteps || msg.proSearchSteps.length === 0) && (
                <div className="flex items-center gap-3 mb-6 animate-pulse">
                   <ImpersioLogo className="w-6 h-6 text-scira-accent animate-spin-slow" />
                </div>
             )}
 
-            {/* 4. Main Content (Serif) */}
+            {/* 4. Main Content */}
             <div className="min-h-[20px] font-serif text-lg leading-relaxed text-[#ECECEC]">
                 <MessageContent 
                   content={msg.content} 
@@ -173,17 +337,79 @@ const MessageItem: React.FC<MessageItemProps> = ({
             )}
 
             {/* 6. Action Bar */}
-            <div className="flex items-center gap-2 mt-4">
-                <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Copy">
-                    <Copy className="w-4 h-4" />
+            <div className="flex items-center gap-1 mt-4 opacity-100 transition-opacity duration-200">
+                <button 
+                    onClick={handleCopy}
+                    className="p-2 text-[#888] hover:text-[#ECECEC] hover:bg-[#2A2A2A] rounded-lg transition-all" 
+                    title={isCopied ? "Copied" : "Copy"}
+                >
+                    {isCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
                 </button>
-                <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Good response">
+                
+                <button 
+                    onClick={() => setFeedbackType('up')}
+                    className="p-2 text-[#888] hover:text-[#ECECEC] hover:bg-[#2A2A2A] rounded-lg transition-all" 
+                    title="Good response"
+                >
                     <ThumbsUp className="w-4 h-4" />
                 </button>
-                <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Bad response">
+                
+                <button 
+                    onClick={() => setFeedbackType('down')}
+                    className="p-2 text-[#888] hover:text-[#ECECEC] hover:bg-[#2A2A2A] rounded-lg transition-all" 
+                    title="Bad response"
+                >
                     <ThumbsDown className="w-4 h-4" />
                 </button>
-                <button className="p-1.5 text-muted hover:text-primary transition-colors" title="Retry">
+                
+                <button 
+                    onClick={handleShare}
+                    className="p-2 text-[#888] hover:text-[#ECECEC] hover:bg-[#2A2A2A] rounded-lg transition-all" 
+                    title="Share"
+                >
+                    <Share className="w-4 h-4" />
+                </button>
+
+                {/* Download Dropdown */}
+                <div className="relative" ref={downloadRef}>
+                    <button 
+                        onClick={() => setIsDownloadOpen(!isDownloadOpen)}
+                        className={`p-2 hover:text-[#ECECEC] hover:bg-[#2A2A2A] rounded-lg transition-all ${isDownloadOpen ? 'text-[#ECECEC] bg-[#2A2A2A]' : 'text-[#888]'}`}
+                        title="Download"
+                    >
+                        <Download className="w-4 h-4" />
+                    </button>
+                    
+                    {isDownloadOpen && (
+                        <div className="absolute top-full left-0 mt-2 w-36 bg-[#1F1F1F] border border-[#333] rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95 duration-100">
+                            <button 
+                                onClick={() => handleDownload('pdf')}
+                                className="w-full text-left px-4 py-2.5 text-sm text-[#BBB] hover:text-white hover:bg-[#2A2A2A] flex items-center gap-2"
+                            >
+                                <FileText className="w-3.5 h-3.5" /> PDF
+                            </button>
+                            <button 
+                                onClick={() => handleDownload('md')}
+                                className="w-full text-left px-4 py-2.5 text-sm text-[#BBB] hover:text-white hover:bg-[#2A2A2A] flex items-center gap-2"
+                            >
+                                <File className="w-3.5 h-3.5" /> Markdown
+                            </button>
+                            <button 
+                                onClick={() => handleDownload('docx')}
+                                className="w-full text-left px-4 py-2.5 text-sm text-[#BBB] hover:text-white hover:bg-[#2A2A2A] flex items-center gap-2"
+                            >
+                                <FileText className="w-3.5 h-3.5" /> DOCX
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                <div className="flex-1" />
+                
+                <button 
+                    className="p-2 text-[#888] hover:text-[#ECECEC] hover:bg-[#2A2A2A] rounded-lg transition-all" 
+                    title="Retry"
+                >
                     <RotateCcw className="w-4 h-4" />
                 </button>
             </div>
