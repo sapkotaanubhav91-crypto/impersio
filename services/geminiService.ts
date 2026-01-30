@@ -51,7 +51,10 @@ export const shouldSearch = async (query: string): Promise<boolean> => {
                 }
             }
         });
-        const result = JSON.parse(response.text || "{}");
+        
+        let text = response.text || "{}";
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
+        const result = JSON.parse(text);
         return result.search ?? true;
     } catch(e) {
         return true;
@@ -66,10 +69,12 @@ const generatePlan = async (query: string): Promise<string[]> => {
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash',
             contents: `You are a Deep Research Planning Agent.
-            Break down the user's query into 4 to 6 distinct, sequential, and comprehensive research steps.
-            The goal is to provide a "Deep Think" answer that takes time to uncover hidden details.
+            Break down the User Query into 4 to 6 distinct, sequential, and comprehensive research steps.
             
-            Steps should be highly specific (e.g., "Analyze the historical context of...", "Compare technical specifications of...", "Investigate recent 2024 developments in...").
+            CRITICAL RULES:
+            1. Every step MUST explicitly mention the specific topic: "${query}".
+            2. Do NOT use generic phrases like "Research the topic" or "Find background".
+            3. Instead use: "Investigate the financial history of ${query}", "Analyze competitor performance against ${query}".
             
             User Query: "${query}"
             
@@ -82,11 +87,20 @@ const generatePlan = async (query: string): Promise<string[]> => {
                 }
             }
         });
-        const text = response.text;
-        if (!text) return ["Analyze the query", "Search for key information", "Synthesize findings"];
+        let text = response.text;
+        if (!text) throw new Error("No text returned");
+        
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(text);
     } catch (e) {
-        return ["Research the topic", "Find latest details", "Compare perspectives", "Summarize answer"];
+        console.error("Plan generation failed, using fallback strategy");
+        // Fallback: Generate steps that strictly include the query to prevent generic searching
+        return [
+            `Comprehensive overview and background of "${query}"`,
+            `Key factors and recent developments regarding "${query}"`,
+            `Detailed analysis and expert perspectives on "${query}"`,
+            `Future outlook and conclusion for "${query}"`
+        ];
     }
 };
 
@@ -95,8 +109,12 @@ const generateQueriesForStep = async (stepTitle: string, originalQuery: string):
         const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash',
-            contents: `Generate 3 specific and effective search queries to complete this research step: "${stepTitle}".
-            Context (Original Query): "${originalQuery}".
+            contents: `Generate 3 highly specific Google Search queries to gather information for this research step: "${stepTitle}".
+            
+            Context (The User's Main Question): "${originalQuery}".
+            
+            IMPORTANT: The queries must be targeted at finding facts about "${originalQuery}".
+            Do not generate generic queries like "how to research".
             
             Return strictly a JSON array of strings.`,
             config: {
@@ -107,11 +125,13 @@ const generateQueriesForStep = async (stepTitle: string, originalQuery: string):
                 }
             }
         });
-        const text = response.text;
-        if (!text) return [stepTitle];
+        let text = response.text;
+        if (!text) return [`${stepTitle} ${originalQuery}`];
+        
+        text = text.replace(/```json/g, '').replace(/```/g, '').trim();
         return JSON.parse(text);
     } catch (e) {
-        return [stepTitle];
+        return [`${stepTitle} ${originalQuery}`, `${originalQuery} details`, `${originalQuery} analysis`];
     }
 };
 
@@ -151,6 +171,8 @@ export const orchestrateProSearch = async (
     const stepFindings: string[] = [];
 
     const plan = await generatePlan(query);
+    
+    // Convert plan strings to Step objects
     plan.forEach((title, idx) => {
         steps.push({
             id: `step-${idx}`,
@@ -188,7 +210,10 @@ export const orchestrateProSearch = async (
         onStepsUpdate([...steps]);
 
         // 2. Execute Searches (Exa Fast)
-        const searchPromises = queries.map(q => searchFast(q));
+        // We use the first query primarily, but maybe parallelize if needed. 
+        // For speed, we just take the top 2 queries max.
+        const activeQueries = queries.slice(0, 2);
+        const searchPromises = activeQueries.map(q => searchFast(q));
         const results = await Promise.all(searchPromises);
         
         const stepSources: SearchResult[] = [];
@@ -206,7 +231,6 @@ export const orchestrateProSearch = async (
         onStepsUpdate([...steps]);
 
         // 3. Deep Analysis (Thinking Phase)
-        // This adds the requested "time" and "thinking" aspect
         if (uniqueSources.length > 0) {
             const finding = await analyzeSearchResults(steps[i].title, uniqueSources);
             steps[i].finding = finding;
