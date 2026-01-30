@@ -35,8 +35,7 @@ export const searchFast = async (query: string): Promise<{ results: SearchResult
         return searchWeb(query, 'fast-visual');
     }
 
-    // Exa AI - Optimized for Speed
-    // Using 'neural' with fewer results for lower latency
+    // Exa AI - Optimized for Speed (User Request: "exa fast 10 sources under 2 seconds")
     const response = await fetch("https://api.exa.ai/search", {
       method: "POST",
       headers: {
@@ -45,13 +44,13 @@ export const searchFast = async (query: string): Promise<{ results: SearchResult
       },
       body: JSON.stringify({
         query: query,
-        numResults: 5, // Reduced from 10 to 5 for speed
-        type: "neural", 
-        useAutoprompt: true, 
+        numResults: 10, // Increased to 10 as requested
+        type: "keyword", // "fast" mode (keyword) instead of "neural"
+        useAutoprompt: false, // Disabled for speed
         contents: {
-          text: true,
+          text: true, // Enabled as requested
           highlights: {
-              numSentences: 2, // Only fetch what we need
+              numSentences: 2, // Keep highlights for better snippets
               query: query
           }
         }
@@ -70,7 +69,7 @@ export const searchFast = async (query: string): Promise<{ results: SearchResult
         try { hostname = new URL(item.url).hostname; } catch (e) {}
         
         // Prefer highlights, fall back to text, truncate to keep payload light
-        const snippet = item.highlights?.[0] || item.text?.substring(0, 250) || "";
+        const snippet = item.highlights?.[0] || item.text?.substring(0, 300) || "";
 
         return {
             title: item.title || hostname,

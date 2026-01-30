@@ -9,7 +9,8 @@ import {
   ThumbsDown,
   ArrowUp,
   Clock,
-  Search
+  Search,
+  BrainCircuit
 } from 'lucide-react';
 import { streamResponse, orchestrateProSearch, shouldSearch } from './services/geminiService';
 import { searchFast, getSuggestions } from './services/googleSearchService';
@@ -83,7 +84,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
       <div className="w-full max-w-3xl mx-auto pb-8 px-4 animate-fade-in flex flex-col gap-2">
         <div className="flex flex-col gap-2">
             
-            {/* 1. Pro Search Status */}
+            {/* 1. Pro Search Status (Deep Research Thinking) */}
             {msg.proSearchSteps && msg.proSearchSteps.length > 0 && (
                <div className="mb-4">
                  <ProSearchLogger steps={msg.proSearchSteps} />
@@ -145,7 +146,7 @@ const MessageItem: React.FC<MessageItemProps> = ({
                 </div>
             )}
 
-            {/* 3. Thinking Indicator */}
+            {/* 3. Thinking Indicator (Standard) */}
             {isLoading && isLast && !msg.content && (!msg.proSearchSteps || msg.proSearchSteps.length === 0) && (
                <div className="flex items-center gap-3 mb-6 animate-pulse">
                   <ImpersioLogo className="w-6 h-6 text-scira-accent animate-spin-slow" />
@@ -215,6 +216,7 @@ export default function App() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODEL_OPTIONS[0]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isDeepMode, setIsDeepMode] = useState(false); // Deep Research State
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<'home' | 'discover' | 'about'>('home');
@@ -344,61 +346,98 @@ export default function App() {
             proSearchSteps: []
         }]);
 
-        const needsSearch = await shouldSearch(finalQuery);
-        
-        let allSources: SearchResult[] = [];
-        
-        if (needsSearch) {
-             const searchResult = await searchFast(finalQuery);
-             if (searchResult && searchResult.results) {
-                 allSources = searchResult.results;
-             }
-     
-             allSources = allSources.filter((s, index, self) => 
-                 index === self.findIndex((t) => (t.link === s.link))
-             );
-        }
-
-        await streamResponse(
-            finalQuery,
-            modelId,
-            messages.slice(-6),
-            allSources,
-            currentAttachments,
-            false,
-            isMobile,
-            (chunk) => {
+        // --- DEEP RESEARCH LOGIC ---
+        if (isDeepMode) {
+            await orchestrateProSearch(
+                finalQuery,
+                modelId,
+                messages,
+                (steps) => {
                     setMessages(prev => {
-                    if (!prev || prev.length === 0) return prev;
-                    const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    if (newMessages[lastIndex].role === 'assistant') {
-                        newMessages[lastIndex] = { 
-                            ...newMessages[lastIndex], 
-                            content: chunk, 
-                            sources: allSources 
-                        };
-                    }
-                    return newMessages;
-                });
-            },
-            (widget) => {
+                        const newMessages = [...prev];
+                        const lastIndex = newMessages.length - 1;
+                        if (newMessages[lastIndex].role === 'assistant') {
+                            newMessages[lastIndex] = {
+                                ...newMessages[lastIndex],
+                                proSearchSteps: steps
+                            };
+                        }
+                        return newMessages;
+                    });
+                },
+                (content, sources) => {
                     setMessages(prev => {
-                    const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    newMessages[lastIndex].widget = widget;
-                    return newMessages;
-                });
-            },
-            (related) => {
-                setMessages(prev => {
-                    const newMessages = [...prev];
-                    const lastIndex = newMessages.length - 1;
-                    newMessages[lastIndex].relatedQuestions = related;
-                    return newMessages;
-                });
+                        const newMessages = [...prev];
+                        const lastIndex = newMessages.length - 1;
+                         if (newMessages[lastIndex].role === 'assistant') {
+                            newMessages[lastIndex] = {
+                                ...newMessages[lastIndex],
+                                content: content,
+                                sources: sources
+                            };
+                        }
+                        return newMessages;
+                    });
+                }
+            );
+        } 
+        // --- STANDARD SEARCH LOGIC ---
+        else {
+            const needsSearch = await shouldSearch(finalQuery);
+            let allSources: SearchResult[] = [];
+            
+            if (needsSearch) {
+                 const searchResult = await searchFast(finalQuery);
+                 if (searchResult && searchResult.results) {
+                     allSources = searchResult.results;
+                 }
+                 // Deduplicate sources
+                 allSources = allSources.filter((s, index, self) => 
+                     index === self.findIndex((t) => (t.link === s.link))
+                 );
             }
-        );
+
+            await streamResponse(
+                finalQuery,
+                modelId,
+                messages.slice(-6),
+                allSources,
+                currentAttachments,
+                false,
+                isMobile,
+                (chunk) => {
+                        setMessages(prev => {
+                        if (!prev || prev.length === 0) return prev;
+                        const newMessages = [...prev];
+                        const lastIndex = newMessages.length - 1;
+                        if (newMessages[lastIndex].role === 'assistant') {
+                            newMessages[lastIndex] = { 
+                                ...newMessages[lastIndex], 
+                                content: chunk, 
+                                sources: allSources 
+                            };
+                        }
+                        return newMessages;
+                    });
+                },
+                (widget) => {
+                        setMessages(prev => {
+                        const newMessages = [...prev];
+                        const lastIndex = newMessages.length - 1;
+                        newMessages[lastIndex].widget = widget;
+                        return newMessages;
+                    });
+                },
+                (related) => {
+                    setMessages(prev => {
+                        const newMessages = [...prev];
+                        const lastIndex = newMessages.length - 1;
+                        newMessages[lastIndex].relatedQuestions = related;
+                        return newMessages;
+                    });
+                }
+            );
+        }
 
     } catch (e) {
       console.error("Search failed", e);
@@ -434,6 +473,7 @@ export default function App() {
      setAttachments([]);
      setView('home');
      setSuggestions([]);
+     setIsDeepMode(false);
      localStorage.removeItem(STORAGE_KEY); 
   };
 
@@ -466,13 +506,25 @@ export default function App() {
                      <button className="text-[#888] hover:text-[#E0E0E0] transition-colors" title="Attach">
                          <Plus className="w-5 h-5" strokeWidth={2} />
                      </button>
-                     {/* Added onClick to toggle History */}
                      <button 
                         className="text-[#888] hover:text-[#E0E0E0] transition-colors" 
                         title="History"
                         onClick={() => setIsHistoryOpen(true)}
                      >
                          <Clock className="w-5 h-5" strokeWidth={2} />
+                     </button>
+                     {/* Deep Research Toggle */}
+                     <button 
+                        onClick={() => setIsDeepMode(!isDeepMode)}
+                        className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-all border 
+                           ${isDeepMode 
+                               ? 'bg-scira-accent/20 text-scira-accent border-scira-accent/50' 
+                               : 'bg-transparent text-[#888] border-transparent hover:bg-[#2A2A2A] hover:text-[#E0E0E0]'
+                           }`}
+                        title="Deep Research Mode"
+                     >
+                        <BrainCircuit className="w-4 h-4" />
+                        <span className="hidden sm:inline">Deep Research</span>
                      </button>
                  </div>
 

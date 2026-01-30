@@ -68,9 +68,11 @@ const generatePlan = async (query: string): Promise<string[]> => {
         const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash',
-            contents: `You are a search planning agent.
-            Break down the user's query into 2 to 4 distinct, sequential research steps to answer it comprehensively.
-            Steps should be actionable (e.g., "Identify...", "Find...", "Compare...", "Analyze...").
+            contents: `You are a Deep Research Planning Agent.
+            Break down the user's query into 3 to 5 distinct, sequential, and comprehensive research steps.
+            The goal is to provide a "Deep Think" answer.
+            
+            Steps should be actionable (e.g., "Analyze the history of...", "Compare technical specifications of...", "Investigate recent developments in...").
             
             User Query: "${query}"
             
@@ -84,10 +86,10 @@ const generatePlan = async (query: string): Promise<string[]> => {
             }
         });
         const text = response.text;
-        if (!text) return ["Analyze the query"];
+        if (!text) return ["Analyze the query", "Search for key information", "Synthesize findings"];
         return JSON.parse(text);
     } catch (e) {
-        return ["Research the topic"];
+        return ["Research the topic", "Find latest details", "Summarize answer"];
     }
 };
 
@@ -96,7 +98,7 @@ const generateQueriesForStep = async (stepTitle: string, originalQuery: string):
         const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash',
-            contents: `Generate 2-3 specific Google search queries to complete this research step: "${stepTitle}".
+            contents: `Generate 2 specific and effective search queries to complete this research step: "${stepTitle}".
             Context (Original Query): "${originalQuery}".
             
             Return strictly a JSON array of strings.`,
@@ -139,16 +141,16 @@ export const orchestrateProSearch = async (
         });
     });
     if (!plan.some(p => p.toLowerCase().includes('wrap') || p.toLowerCase().includes('summary'))) {
-        steps.push({ id: 'step-final', title: 'Wrapping up', status: 'pending', queries: [], sources: [] });
+        steps.push({ id: 'step-final', title: 'Synthesizing Deep Research Report', status: 'pending', queries: [], sources: [] });
     }
     
     onStepsUpdate([...steps]);
 
     for (let i = 0; i < steps.length; i++) {
-        if (steps[i].title === 'Wrapping up' && i === steps.length - 1) {
+        if (steps[i].title.includes('Synthesizing') && i === steps.length - 1) {
              steps[i].status = 'in-progress';
              onStepsUpdate([...steps]);
-             await new Promise(r => setTimeout(r, 600)); 
+             await new Promise(r => setTimeout(r, 800)); // Visual pause for "thinking"
              steps[i].status = 'completed';
              onStepsUpdate([...steps]);
              continue;
@@ -161,7 +163,8 @@ export const orchestrateProSearch = async (
         steps[i].queries = queries;
         onStepsUpdate([...steps]);
 
-        const searchPromises = queries.slice(0, 2).map(q => searchFast(q));
+        // Execute searches (using fast Exa search)
+        const searchPromises = queries.map(q => searchFast(q));
         const results = await Promise.all(searchPromises);
         
         const stepSources: SearchResult[] = [];
@@ -169,6 +172,7 @@ export const orchestrateProSearch = async (
             if (r.results) stepSources.push(...r.results);
         });
 
+        // Unique filter based on URL
         const uniqueSources = stepSources.filter((s, index, self) => 
             index === self.findIndex((t) => (t.link === s.link))
         );
@@ -180,15 +184,20 @@ export const orchestrateProSearch = async (
         onStepsUpdate([...steps]);
     }
 
+    // Final Deduplication of all sources
+    const finalUniqueSources = allSources.filter((s, index, self) => 
+        index === self.findIndex((t) => (t.link === s.link))
+    );
+
     await streamResponse(
         query,
         modelId,
         history,
-        allSources,
+        finalUniqueSources,
         [], 
         true, 
         false, 
-        (chunk) => onComplete(chunk, allSources),
+        (chunk) => onComplete(chunk, finalUniqueSources),
         () => {}, 
         () => {}, 
         (full, widget, related) => {}
