@@ -19,7 +19,7 @@ import {
   File,
   MoreHorizontal
 } from 'lucide-react';
-import { streamResponse, orchestrateProSearch, shouldSearch } from './services/geminiService';
+import { streamResponse, orchestrateProSearch, detectIntent } from './services/geminiService';
 import { searchFast, getSuggestions } from './services/googleSearchService';
 import { createConversation, saveMessage } from './services/chatStorageService';
 import { Message, SearchResult, ModelOption } from './types';
@@ -572,8 +572,19 @@ export default function App() {
             proSearchSteps: []
         }]);
 
+        // --- INTENT DETECTION ---
+        // Automatically determine if Pro Search (Deep Research) is needed
+        let executeProSearch = isDeepMode;
+        let needsSearch = true; // Default
+
+        if (!isDeepMode) {
+             const intent = await detectIntent(finalQuery);
+             needsSearch = intent.search;
+             executeProSearch = intent.isPro;
+        }
+
         // --- DEEP RESEARCH LOGIC ---
-        if (isDeepMode) {
+        if (executeProSearch) {
             await orchestrateProSearch(
                 finalQuery,
                 modelId,
@@ -609,7 +620,6 @@ export default function App() {
         } 
         // --- STANDARD SEARCH LOGIC ---
         else {
-            const needsSearch = await shouldSearch(finalQuery);
             let allSources: SearchResult[] = [];
             
             if (needsSearch) {
