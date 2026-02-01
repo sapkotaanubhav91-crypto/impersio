@@ -14,12 +14,13 @@ import {
   Layers,
   Image as ImageIcon,
   PlayCircle,
-  ChevronDown
+  ChevronDown,
+  Loader2
 } from 'lucide-react';
 import { streamResponse, generateCopilotStep } from './services/geminiService';
 import { searchFast, searchMedia } from './services/googleSearchService';
 import { authService } from './services/authService';
-import { Message, ModelOption, User, CopilotPayload, SearchResult } from './types';
+import { Message, ModelOption, User, CopilotPayload, SearchResult, CopilotEvent } from './types';
 import { Discover } from './components/Discover';
 import { About } from './components/About';
 import { AuthModal } from './components/AuthModal';
@@ -48,7 +49,37 @@ const MODEL_OPTIONS: ModelOption[] = [
   { id: 'deepseek-coder', name: 'DeepSeek', description: 'Code-focused model', icon: CodeIcon },
 ];
 
-// --- Components ---
+// --- Copilot Components ---
+
+const CopilotProgress = ({ events }: { events: CopilotEvent[] }) => {
+    return (
+        <div className="flex flex-col gap-3 py-4 animate-fade-in">
+            {events.map((event) => (
+                <div key={event.id} className="flex items-start gap-3">
+                    <div className="mt-0.5">
+                        {event.status === 'loading' && <div className="w-4 h-4 border-2 border-scira-accent border-t-transparent rounded-full animate-spin" />}
+                        {event.status === 'completed' && <Check className="w-4 h-4 text-scira-accent" />}
+                        {event.status === 'pending' && <div className="w-4 h-4 rounded-full border border-border" />}
+                    </div>
+                    <div className="flex flex-col">
+                        <span className={`text-sm font-medium ${event.status === 'completed' ? 'text-primary' : 'text-muted'}`}>
+                            {event.message}
+                        </span>
+                        {event.items && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                                {event.items.map((item, i) => (
+                                    <span key={i} className="text-xs bg-surface-hover px-2 py-1 rounded text-muted">
+                                        {item}
+                                    </span>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
 
 const CopilotWidget = ({ 
     step, 
@@ -76,13 +107,8 @@ const CopilotWidget = ({
     };
 
     return (
-        <div className="w-full bg-surface border border-border rounded-lg p-6 mb-8 animate-fade-in shadow-sm font-sans">
-            <div className="flex items-center gap-2 mb-3 text-primary font-medium">
-                <Sparkles className="w-4 h-4 text-scira-accent" />
-                <span className="text-sm font-semibold">Copilot</span>
-            </div>
-            
-            <h3 className="text-base text-primary mb-5 leading-relaxed">{step.question}</h3>
+        <div className="w-full bg-surface border border-border rounded-lg p-6 my-4 animate-fade-in shadow-sm font-sans">
+            <h3 className="text-base text-primary mb-5 leading-relaxed font-medium">{step.question}</h3>
             
             {step.type === 'text' && (
                 <input 
@@ -167,16 +193,29 @@ const MessageItem: React.FC<MessageItemProps> = ({
     );
   }
 
-  // Copilot Active State
-  if (msg.isCopilotActive && msg.copilotStep) {
+  // --- COPILOT ACTIVE FLOW ---
+  // If we are actively in the copilot flow (before final answer)
+  if (msg.isCopilotActive) {
       return (
-          <div className="w-full max-w-3xl mx-auto px-4 md:px-0 pb-12 pt-8">
-              <CopilotWidget step={msg.copilotStep} onAnswer={onCopilotAnswer} />
+          <div className="w-full max-w-3xl mx-auto px-4 md:px-0 pb-12 pt-4">
+              <div className="flex items-center gap-2 mb-4 text-primary font-medium">
+                   <Sparkles className="w-4 h-4 text-scira-accent" />
+                   <span>Copilot</span>
+              </div>
+              
+              {/* Show Progress Log */}
+              {msg.copilotEvents && <CopilotProgress events={msg.copilotEvents} />}
+
+              {/* Show Widget if Step Exists and we are not 'searching' yet */}
+              {msg.copilotStep && !msg.copilotEvents?.some(e => e.message === 'Searching web') && (
+                  <CopilotWidget step={msg.copilotStep} onAnswer={onCopilotAnswer} />
+              )}
           </div>
       );
   }
 
-  // Assistant Message (Split Layout)
+  // --- FINAL ANSWER LAYOUT ---
+  // Once Copilot is done (or if it wasn't active), we show the result
   return (
       <div className="w-full max-w-7xl mx-auto pb-16 px-4 md:px-8 animate-fade-in pt-8">
         
@@ -184,25 +223,27 @@ const MessageItem: React.FC<MessageItemProps> = ({
             {/* LEFT COLUMN: Main Content */}
             <div className="min-w-0 flex flex-col gap-8">
                 
-                {/* Copilot Status Bar (Collapsible Look) */}
-                <div className="flex items-center justify-between py-3 px-4 bg-surface border border-border rounded-xl">
-                    <div className="flex items-center gap-2 text-primary font-medium">
-                        <Sparkles className="w-4 h-4 text-scira-accent" />
-                        <span>Copilot</span>
+                {/* Collapsed Copilot Status */}
+                {msg.copilotEvents && msg.copilotEvents.length > 0 && (
+                     <div className="flex items-center justify-between py-3 px-4 bg-surface border border-border rounded-xl">
+                        <div className="flex items-center gap-2 text-primary font-medium">
+                            <Sparkles className="w-4 h-4 text-scira-accent" />
+                            <span>Copilot</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted">
+                            <span>{msg.copilotEvents.length} steps completed</span>
+                            <ChevronDown className="w-4 h-4" />
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted">
-                        <span>{isLoading ? 'Thinking...' : 'Completed'}</span>
-                        <ChevronDown className="w-4 h-4" />
-                    </div>
-                </div>
+                )}
 
-                {/* Loading State */}
+                {/* Loading State for Final Generation */}
                 {isLoading && isLast && !msg.content && (
                     <div className="flex items-center gap-3 text-primary font-medium">
                         <div className="w-5 h-5 flex items-center justify-center">
                             <div className="w-2.5 h-2.5 bg-scira-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(33,128,141,0.6)]" />
                         </div>
-                        <span className="text-lg font-sans text-primary">Summarizing · {modelName}</span>
+                        <span className="text-lg font-sans text-primary">Generating · {modelName}</span>
                     </div>
                 )}
 
@@ -314,15 +355,6 @@ const MessageItem: React.FC<MessageItemProps> = ({
                                     />
                                 </div>
                             ))}
-                            {/* View More Placeholder */}
-                            {msg.images.length > 3 && (
-                                <div className="aspect-square rounded-xl overflow-hidden border border-border bg-surface-hover flex items-center justify-center cursor-pointer hover:bg-border/50 transition-colors">
-                                    <div className="flex flex-col items-center gap-1 text-muted">
-                                        <ImageIcon className="w-5 h-5" />
-                                        <span className="text-xs font-medium">View more</span>
-                                    </div>
-                                </div>
-                            )}
                         </div>
                      </div>
                 )}
@@ -382,7 +414,6 @@ export default function App() {
   
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [view, setView] = useState<'home' | 'discover' | 'about'>('home');
   const [user, setUser] = useState<User | null>(null);
@@ -400,7 +431,7 @@ export default function App() {
     if (messagesEndRef.current) {
         messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages.length, messages[messages.length-1]?.content]);
+  }, [messages.length, messages[messages.length-1]?.content, messages[messages.length-1]?.copilotEvents]);
 
   // Handle Search Initiation
   const handleSearch = async (overrideQuery?: string) => {
@@ -414,42 +445,73 @@ export default function App() {
 
     if (!hasSearched) setHasSearched(true);
 
-    // 1. Create new messages locally first
+    // 1. Setup new user message
     const userMsg: Message = { role: 'user', content: finalQuery };
-    const assistantMsg: Message = { role: 'assistant', content: '', sources: [], images: [], videos: [] };
+    
+    // 2. Setup Assistant message placeholder
+    // If Copilot is ON, we start with isCopilotActive = true and initial events
+    const initialEvents: CopilotEvent[] = isCopilotMode ? [
+        { id: '1', message: 'Understanding question', status: 'loading' }
+    ] : [];
 
-    // 2. Update state safely
+    const assistantMsg: Message = { 
+        role: 'assistant', 
+        content: '', 
+        sources: [], 
+        images: [], 
+        videos: [],
+        isCopilotActive: isCopilotMode,
+        copilotEvents: initialEvents
+    };
+
     setMessages(prev => [...prev, userMsg, assistantMsg]);
-
-    // 3. Construct history for the API call (including the new user message)
-    // Note: We cannot use 'messages' state here as it is stale.
+    
     const currentHistory = [...messages, userMsg];
 
     try {
-        // --- COPILOT LOGIC ---
-        // Only run copilot analysis step if mode is explicitly ON
         if (isCopilotMode) {
+             // --- COPILOT FLOW ---
+             
+             // Step 1: Simulate "Understanding" delay
+             await new Promise(r => setTimeout(r, 1500));
+             
+             // Step 2: Generate Widget (or skip)
              const copilotStep = await generateCopilotStep(finalQuery);
              
              if (copilotStep) {
-                 // Update last message to be a Copilot interaction
+                 // Update state: Understanding complete, waiting for widget
                  setMessages(prev => {
                      const newMsgs = [...prev];
                      const last = newMsgs[newMsgs.length - 1];
-                     // Safety check
                      if (last) {
-                         last.isCopilotActive = true;
+                         last.copilotEvents = [
+                             { id: '1', message: 'Understanding question', status: 'completed' }
+                         ];
                          last.copilotStep = copilotStep;
-                         last.content = finalQuery; 
                      }
                      return newMsgs;
                  });
+                 // Stop here and wait for handleCopilotAnswer
                  setIsLoading(false); 
                  return;
-             }
+             } 
+             
+             // If no widget returned, just proceed to search
+             // Update state: Understanding complete
+             setMessages(prev => {
+                const newMsgs = [...prev];
+                const last = newMsgs[newMsgs.length - 1];
+                if (last) {
+                    last.copilotEvents = [
+                        { id: '1', message: 'Understanding question', status: 'completed' },
+                        { id: '2', message: 'Searching web', status: 'loading' }
+                    ];
+                }
+                return newMsgs;
+             });
         }
 
-        // --- STANDARD SEARCH ---
+        // --- STANDARD / SEARCH EXECUTION ---
         await executeSearch(finalQuery, currentHistory);
 
     } catch (e) {
@@ -461,9 +523,7 @@ export default function App() {
   const executeSearch = async (searchQuery: string, history: Message[]) => {
       setIsLoading(true);
 
-      // --- SEARCH DECISION ---
-      // STRICT: Only search if Copilot Mode is ON, otherwise use pure LLM.
-      const needsSearch = isCopilotMode;
+      const needsSearch = isCopilotMode; // Only search if in Copilot Mode
       
       let results: SearchResult[] = [];
       let images: SearchResult[] = [];
@@ -471,7 +531,6 @@ export default function App() {
 
       if (needsSearch) {
           try {
-              // Parallelize Text and Media Search
               const [textRes, mediaRes] = await Promise.all([
                   searchFast(searchQuery),
                   searchMedia(searchQuery)
@@ -481,22 +540,33 @@ export default function App() {
               images = mediaRes.images;
               videos = mediaRes.videos;
           } catch (e) {
-              console.warn("Search failed, proceeding with generation only", e);
+              console.warn("Search failed", e);
           }
       }
       
-      // Update sources and media immediately
+      // Update state with results and complete the "Searching" event
       setMessages(prev => {
           const newMsgs = [...prev];
-          if (newMsgs.length === 0) return prev;
-          
           const last = newMsgs[newMsgs.length - 1];
-          // Safety check for last message existence
           if (last) {
               last.sources = results;
               last.images = images;
               last.videos = videos;
-              last.isCopilotActive = false; 
+              
+              // If we were in copilot mode, finalize the events
+              if (last.isCopilotActive) {
+                  const newEvents = last.copilotEvents?.map(e => 
+                      e.message === 'Searching web' ? { ...e, status: 'completed' as const } : e
+                  ) || [];
+                  
+                  // If we skipped the widget, we might not have the "Searching" event yet, add it if missing
+                  if (!newEvents.some(e => e.message === 'Searching web') && isCopilotMode) {
+                      newEvents.push({ id: '2', message: 'Searching web', status: 'completed' });
+                  }
+                  
+                  last.copilotEvents = newEvents;
+                  last.isCopilotActive = false; // Transition to final answer view
+              }
           }
           return newMsgs;
       });
@@ -512,11 +582,8 @@ export default function App() {
           (chunk) => {
               setMessages(prev => {
                   const newMsgs = [...prev];
-                  if (newMsgs.length === 0) return prev;
                   const last = newMsgs[newMsgs.length - 1];
-                  if (last) {
-                      last.content = chunk;
-                  }
+                  if (last) last.content = chunk;
                   return newMsgs;
               });
           },
@@ -524,20 +591,17 @@ export default function App() {
           (related) => {
               setMessages(prev => {
                   const newMsgs = [...prev];
-                  if (newMsgs.length === 0) return prev;
                   const last = newMsgs[newMsgs.length - 1];
-                  if (last) {
-                    last.relatedQuestions = related;
-                  }
+                  if (last) last.relatedQuestions = related;
                   return newMsgs;
               });
           },
           undefined,
           undefined,
           (sources) => {
-              setMessages(prev => {
+               // Update sources if they come late (Google Search Tool)
+               setMessages(prev => {
                   const newMsgs = [...prev];
-                  if (newMsgs.length === 0) return prev;
                   const last = newMsgs[newMsgs.length - 1];
                   if (last && (!last.sources || last.sources.length === 0)) {
                       last.sources = sources;
@@ -551,30 +615,35 @@ export default function App() {
   };
 
   const handleCopilotAnswer = async (answer: string) => {
-      // Find the question we are answering
-      const lastMsg = messages[messages.length - 1];
-      const originalQuery = lastMsg.content; 
+      const currentMsgs = [...messages];
+      const lastMsg = currentMsgs[currentMsgs.length - 1];
+      const originalQuery = lastMsg.content; // Copilot stores original query here temporarily before it gets overwritten by stream? 
+      // Actually in my handleSearch I stored original query in 'userMsg'.
+      // Wait, 'lastMsg' is the ASSISTANT message. Its content is empty initially.
+      // I stored original query in the lastMsg.content in the previous handleSearch implementation, let's verify.
+      // Ah, I need to retrieve the User Query from the *previous* message (index - 1).
       
-      // We need to pass the history up to the user message
-      // Messages state has [..., UserMsg, AssistantMsg(Copilot)]
-      // We want to reuse the AssistantMsg or replace it.
-      // Let's reset the assistant message to empty and load it.
+      const userQuery = currentMsgs[currentMsgs.length - 2].content;
+      const refinedQuery = `${userQuery} (User Clarification: ${answer})`;
       
-      const refinedQuery = `${originalQuery} (User Clarification: ${answer})`;
-      
+      // Update the UI: Show "Searching web" loading state
       setMessages(prev => {
           const newMsgs = [...prev];
           const last = newMsgs[newMsgs.length - 1];
-          if (last) {
-            last.isCopilotActive = false; 
-            last.content = ''; // Reset content to stream new answer
-            last.copilotStep = undefined;
+          if (last && last.copilotEvents) {
+              last.copilotEvents = [
+                  ...last.copilotEvents,
+                  { id: '2', message: 'Searching web', status: 'loading', items: [answer] }
+              ];
           }
           return newMsgs;
       });
 
-      // Pass history excluding the last assistant placeholder which is currently active
-      const historyForGen = messages.slice(0, -1);
+      setIsLoading(true);
+      
+      // Execute search reusing the assistant message bubble
+      // We pass the history excluding the current assistant bubble
+      const historyForGen = currentMsgs.slice(0, -1);
       
       await executeSearch(refinedQuery, historyForGen);
   };

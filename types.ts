@@ -57,6 +57,13 @@ export interface CopilotPayload {
   answer?: string | string[]; 
 }
 
+export interface CopilotEvent {
+  id: string;
+  message: string;
+  status: 'pending' | 'loading' | 'completed';
+  items?: string[]; // For "Searching web" queries
+}
+
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
@@ -69,8 +76,9 @@ export interface Message {
   relatedQuestions?: string[];
   
   // Copilot specific
-  isCopilotActive?: boolean;
-  copilotStep?: CopilotPayload;
+  isCopilotActive?: boolean; // True if we are currently in the copilot flow (before final answer)
+  copilotStep?: CopilotPayload; // The interactive widget data
+  copilotEvents?: CopilotEvent[]; // The log of steps (Understanding -> Searching...)
 }
 
 export interface User {

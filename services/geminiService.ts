@@ -45,53 +45,9 @@ const generateWithRetry = async (ai: any, params: any, retries = 3, delay = 2000
 };
 
 // --- Intent Detection (Search vs Pure Gen) ---
-// Note: Keeping this for potential future use or non-copilot smart mode, 
-// but currently App.tsx uses strict isCopilotMode check.
 export const shouldSearch = async (query: string): Promise<boolean> => {
-    const lower = query.toLowerCase();
-
-    if (lower.startsWith('write') || 
-        lower.startsWith('code') || 
-        lower.startsWith('generate') || 
-        lower.startsWith('create') || 
-        lower.startsWith('draft') ||
-        lower.startsWith('translate') ||
-        lower.startsWith('hi ') ||
-        lower.startsWith('hello') ||
-        lower === 'hi' ||
-        lower === 'hello' ||
-        lower.includes('explain this code') ||
-        lower.includes('fix this') ||
-        lower.includes('debug')) {
-        return false;
-    }
-
-    if (lower.includes('latest') || 
-        lower.includes('news') || 
-        lower.includes('weather') || 
-        lower.includes('price') || 
-        lower.includes('stock') ||
-        lower.includes('population') ||
-        lower.includes('who is') ||
-        lower.includes('when is') ||
-        lower.includes('where is')) {
-        return true;
-    }
-
-    try {
-        const ai = getAiClient();
-        const response = await ai.models.generateContent({
-             model: 'gemini-2.0-flash',
-             contents: `You are a search intent classifier. 
-             Query: "${query}"
-             Output ONLY "true" or "false".`,
-             config: { temperature: 0, maxOutputTokens: 5 }
-        });
-        const text = response.text?.trim().toLowerCase();
-        return text === 'true';
-    } catch (e) {
-        return true;
-    }
+    // Kept for backward compatibility, but App.tsx handles the strict mode check.
+    return true; 
 };
 
 // --- Copilot / Deep Dive Logic ---
@@ -99,37 +55,30 @@ export const shouldSearch = async (query: string): Promise<boolean> => {
 export const generateCopilotStep = async (query: string): Promise<CopilotPayload | null> => {
     try {
         const ai = getAiClient();
-        let context = "";
-        try {
-             // We do a very light search just to understand context if needed
-             // But to save quota we might skip this or keep it minimal
-             const searchRes = await searchFast(query);
-             context = searchRes.results.slice(0, 3).map(r => r.snippet).join('\n');
-        } catch(e) {}
-
+        
         const response = await ai.models.generateContent({
             model: 'gemini-2.0-flash',
             contents: `User Query: "${query}"
-            Search Context (optional): "${context}"
             
-            You are "Impersio Copilot", an advanced search assistant.
-            Goal: Determine if you need to ask *one* clarifying question to provide a perfect, deep-dive answer.
+            You are "Impersio Copilot".
+            Goal: You MUST ask *one* clarifying question to better understand the user's specific intent before searching.
             
             Rules:
-            1. If the query is broad (e.g., "Plan a trip", "Best laptop", "How to code"), ASK a question to narrow it down.
-            2. If the query is specific (e.g., "Population of Tokyo 2023", "Who won the 1994 World Cup"), do NOT ask.
-            3. Provide reasonable options if applicable.
+            1. Almost ALL queries can be refined. (e.g., "Paris" -> "Are you interested in history, travel, or news?", "Python" -> "Are you looking for tutorials, documentation, or installation?").
+            2. Only skip clarification if the query is extremely precise fact retrieval (e.g., "What is 2+2").
+            3. Prefer "selection" type questions with 2-4 concise options.
             
             Output JSON format:
             {
                 "needs_clarification": boolean,
                 "question": "The question to ask",
                 "type": "selection" | "text",
-                "options": ["Option 1", "Option 2"] // Only if type is selection (max 4 options)
+                "options": ["Option 1", "Option 2"]
             }
             `,
             config: {
                 responseMimeType: "application/json",
+                temperature: 0.3 // Lower temperature for more consistent JSON
             }
         });
         
@@ -147,7 +96,7 @@ export const generateCopilotStep = async (query: string): Promise<CopilotPayload
         return null;
 
     } catch (e) {
-        // Silently fail copilot step on error to allow main search to proceed
+        console.error("Copilot Generation Error", e);
         return null;
     }
 };
@@ -304,7 +253,6 @@ export const streamResponse = async (
         contentsParts = [...imageParts, { text: fullPrompt }];
     }
 
-    // Use retry wrapper
     const result = await generateWithRetry(ai, {
         model: modelName.includes('gemini') ? modelName : 'gemini-2.0-flash', 
         contents: [{ role: 'user', parts: contentsParts }],
@@ -323,7 +271,6 @@ export const streamResponse = async (
             onChunk(split[0]); 
         }
 
-        // Handle Google Search Tool Sources
         const groundingMetadata = chunk.candidates?.[0]?.groundingMetadata;
         if (useBuiltInSearch && groundingMetadata?.groundingChunks) {
             const sources: SearchResult[] = groundingMetadata.groundingChunks
@@ -333,7 +280,7 @@ export const streamResponse = async (
                     title: w.title || "Source",
                     link: w.uri,
                     displayLink: new URL(w.uri).hostname,
-                    snippet: "Retrieved via Google Search" // Tool doesn't always provide snippet chunks easily here
+                    snippet: "Retrieved via Google Search" 
                 }));
             
             if (sources.length > 0 && onSources) {
@@ -342,7 +289,6 @@ export const streamResponse = async (
         }
     }
 
-    // Extract related questions
     const parts = fullText.split('|||');
     if (parts.length > 1) {
         const related = parts.slice(1).join('').split('\n').map(q => q.trim()).filter(q => q.length > 5);
@@ -358,12 +304,9 @@ export const streamResponse = async (
     if (onComplete) onComplete(parts[0], undefined, []);
 
   } catch (err: any) {
-      // Catch ALL Gemini errors (Quota, Network, Keys) and use Fallback
       console.error("Gemini Error:", err);
-      
       const isQuotaError = err.status === 429 || err.message?.includes('429') || err.message?.includes('quota');
       const msg = isQuotaError ? "*Gemini quota exceeded. Switching to backup model...*\n\n" : "*Gemini unavailable. Switching to backup model...*\n\n";
-      
       await runPollinationsFallback(msg);
   }
 };
