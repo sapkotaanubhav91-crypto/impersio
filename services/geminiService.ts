@@ -44,15 +44,65 @@ const generateWithRetry = async (ai: any, params: any, retries = 3, delay = 2000
     }
 };
 
+// --- Intent Detection (Search vs Pure Gen) ---
+// Note: Keeping this for potential future use or non-copilot smart mode, 
+// but currently App.tsx uses strict isCopilotMode check.
+export const shouldSearch = async (query: string): Promise<boolean> => {
+    const lower = query.toLowerCase();
+
+    if (lower.startsWith('write') || 
+        lower.startsWith('code') || 
+        lower.startsWith('generate') || 
+        lower.startsWith('create') || 
+        lower.startsWith('draft') ||
+        lower.startsWith('translate') ||
+        lower.startsWith('hi ') ||
+        lower.startsWith('hello') ||
+        lower === 'hi' ||
+        lower === 'hello' ||
+        lower.includes('explain this code') ||
+        lower.includes('fix this') ||
+        lower.includes('debug')) {
+        return false;
+    }
+
+    if (lower.includes('latest') || 
+        lower.includes('news') || 
+        lower.includes('weather') || 
+        lower.includes('price') || 
+        lower.includes('stock') ||
+        lower.includes('population') ||
+        lower.includes('who is') ||
+        lower.includes('when is') ||
+        lower.includes('where is')) {
+        return true;
+    }
+
+    try {
+        const ai = getAiClient();
+        const response = await ai.models.generateContent({
+             model: 'gemini-2.0-flash',
+             contents: `You are a search intent classifier. 
+             Query: "${query}"
+             Output ONLY "true" or "false".`,
+             config: { temperature: 0, maxOutputTokens: 5 }
+        });
+        const text = response.text?.trim().toLowerCase();
+        return text === 'true';
+    } catch (e) {
+        return true;
+    }
+};
+
 // --- Copilot / Deep Dive Logic ---
 
 export const generateCopilotStep = async (query: string): Promise<CopilotPayload | null> => {
     try {
         const ai = getAiClient();
-        
-        // Quick pre-search to get context for better questions
         let context = "";
         try {
+             // We do a very light search just to understand context if needed
+             // But to save quota we might skip this or keep it minimal
              const searchRes = await searchFast(query);
              context = searchRes.results.slice(0, 3).map(r => r.snippet).join('\n');
         } catch(e) {}
@@ -97,7 +147,7 @@ export const generateCopilotStep = async (query: string): Promise<CopilotPayload
         return null;
 
     } catch (e) {
-        console.error("Copilot Step Gen Error", e);
+        // Silently fail copilot step on error to allow main search to proceed
         return null;
     }
 };
@@ -142,47 +192,45 @@ export const streamResponse = async (
   
   Instructions:
   1. Answer directly and comprehensively.
-  ${useBuiltInSearch ? '2. Use the Google Search tool to find information.' : '2. Use citations [1], [2] inline when referring to sources provided in Context.'}
+  ${useBuiltInSearch ? '2. Use the Google Search tool to find information if needed.' : '2. Use citations [1], [2] inline when referring to sources provided in Context.'}
   3. Format with clean Markdown. Use headings for sections.
   4. At the very end, generate 3 related follow-up questions separated by "|||".
   `;
 
-  // --- GPT-4 (Pollinations) Path ---
-  if (modelName === 'gpt-4') {
+  // --- Helper to execute Pollinations (Free Fallback) ---
+  const runPollinationsFallback = async (contextPrefix = "") => {
       try {
-        let fullText = "";
-        // Pollinations.ai doesn't require an API key and uses an OpenAI compatible endpoint
-        await streamPollinations(
+          if (contextPrefix) onChunk(contextPrefix);
+          
+          let fullText = "";
+          await streamPollinations(
             [{ role: 'user', content: fullPrompt }],
-            'openai', 
+            'openai',
             (chunk) => {
                 fullText += chunk;
                 const split = fullText.split('|||');
                 onChunk(split[0]); 
             }
-        );
-
-        // Process related questions
-        const parts = fullText.split('|||');
-        if (parts.length > 1) {
+          );
+          
+          const parts = fullText.split('|||');
+          if (parts.length > 1) {
             const related = parts.slice(1).join('').split('\n').map(q => q.trim()).filter(q => q.length > 5);
             onRelated(related);
-        } else {
-            onRelated([
-                `More details about ${prompt.substring(0, 15)}...`,
-                "Explain the implications",
-                "Compare with alternatives"
-            ]);
-        }
+          }
+          if (onComplete) onComplete(parts[0], undefined, []);
 
-        if (onComplete) onComplete(parts[0], undefined, []);
-        return;
-
-      } catch (err: any) {
-        console.error(err);
-        onChunk("Sorry, I encountered an error connecting to Pollinations AI. Please try again.");
-        return;
+      } catch (err) {
+          console.error("Universal Fallback Failed:", err);
+          onChunk("\n\n*System Error: All AI services are currently unavailable. Please check your connection.*");
       }
+  };
+
+
+  // --- GPT-4 (Pollinations) Path ---
+  if (modelName === 'gpt-4') {
+      await runPollinationsFallback();
+      return;
   }
 
   // --- Llama 3.3 via Groq ---
@@ -198,23 +246,16 @@ export const streamResponse = async (
                 onChunk(split[0]); 
             }
         );
-        // Process related questions (Same logic as GPT-4)
         const parts = fullText.split('|||');
         if (parts.length > 1) {
             const related = parts.slice(1).join('').split('\n').map(q => q.trim()).filter(q => q.length > 5);
             onRelated(related);
-        } else {
-             onRelated([
-                `More details about ${prompt.substring(0, 15)}...`,
-                "Explain the implications",
-                "Compare with alternatives"
-            ]);
         }
         if (onComplete) onComplete(parts[0], undefined, []);
         return;
       } catch (err: any) {
-        console.error(err);
-        onChunk(`Sorry, error with Groq: ${err.message}`);
+        console.warn("Groq failed, trying fallback...", err);
+        await runPollinationsFallback("\n\n*Groq unavailable, switching to backup model...*\n\n");
         return;
       }
   }
@@ -232,23 +273,16 @@ export const streamResponse = async (
                 onChunk(split[0]); 
             }
         );
-        // Process related questions (Same logic)
         const parts = fullText.split('|||');
         if (parts.length > 1) {
             const related = parts.slice(1).join('').split('\n').map(q => q.trim()).filter(q => q.length > 5);
             onRelated(related);
-        } else {
-             onRelated([
-                `More details about ${prompt.substring(0, 15)}...`,
-                "Explain the implications",
-                "Compare with alternatives"
-            ]);
         }
         if (onComplete) onComplete(parts[0], undefined, []);
         return;
       } catch (err: any) {
-        console.error(err);
-        onChunk(`Sorry, error with OpenRouter: ${err.message}`);
+        console.warn("OpenRouter failed, trying fallback...", err);
+        await runPollinationsFallback("\n\n*OpenRouter unavailable, switching to backup model...*\n\n");
         return;
       }
   }
@@ -324,62 +358,12 @@ export const streamResponse = async (
     if (onComplete) onComplete(parts[0], undefined, []);
 
   } catch (err: any) {
+      // Catch ALL Gemini errors (Quota, Network, Keys) and use Fallback
       console.error("Gemini Error:", err);
       
-      // --- Fallback Logic ---
-      console.log("Attempting Fallback: Groq");
-      try {
-          onChunk("\n\n*Switching to backup model (Groq)...*\n\n");
-          
-          let fullText = "";
-          await streamGroq(
-            [{ role: 'user', content: fullPrompt }],
-            'llama-3.3-70b-versatile',
-            (chunk) => {
-                fullText += chunk;
-                const split = fullText.split('|||');
-                onChunk(split[0]); 
-            }
-          );
-          
-          const parts = fullText.split('|||');
-          if (parts.length > 1) {
-            const related = parts.slice(1).join('').split('\n').map(q => q.trim()).filter(q => q.length > 5);
-            onRelated(related);
-          }
-          if (onComplete) onComplete(parts[0], undefined, []);
-          return;
-
-      } catch (groqErr) {
-          console.error("Groq Fallback Error:", groqErr);
-          console.log("Attempting Fallback: OpenRouter");
-          
-          try {
-              onChunk("\n\n*Switching to backup model (OpenRouter)...*\n\n");
-
-              let fullText = "";
-              await streamOpenRouter(
-                [{ role: 'user', content: fullPrompt }],
-                'meta-llama/llama-3.3-70b-instruct',
-                (chunk) => {
-                    fullText += chunk;
-                    const split = fullText.split('|||');
-                    onChunk(split[0]); 
-                }
-              );
-
-              const parts = fullText.split('|||');
-              if (parts.length > 1) {
-                const related = parts.slice(1).join('').split('\n').map(q => q.trim()).filter(q => q.length > 5);
-                onRelated(related);
-              }
-              if (onComplete) onComplete(parts[0], undefined, []);
-              return;
-              
-          } catch (orErr) {
-              console.error("OpenRouter Fallback Error:", orErr);
-              onChunk("Sorry, all services are currently unavailable. Please check your connection or try again later.");
-          }
-      }
+      const isQuotaError = err.status === 429 || err.message?.includes('429') || err.message?.includes('quota');
+      const msg = isQuotaError ? "*Gemini quota exceeded. Switching to backup model...*\n\n" : "*Gemini unavailable. Switching to backup model...*\n\n";
+      
+      await runPollinationsFallback(msg);
   }
 };

@@ -12,12 +12,14 @@ import {
   ArrowUp,
   Globe,
   Layers,
-  Image as ImageIcon
+  Image as ImageIcon,
+  PlayCircle,
+  ChevronDown
 } from 'lucide-react';
 import { streamResponse, generateCopilotStep } from './services/geminiService';
-import { searchFast } from './services/googleSearchService';
+import { searchFast, searchMedia } from './services/googleSearchService';
 import { authService } from './services/authService';
-import { Message, ModelOption, User, CopilotPayload } from './types';
+import { Message, ModelOption, User, CopilotPayload, SearchResult } from './types';
 import { Discover } from './components/Discover';
 import { About } from './components/About';
 import { AuthModal } from './components/AuthModal';
@@ -74,7 +76,7 @@ const CopilotWidget = ({
     };
 
     return (
-        <div className="w-full max-w-2xl bg-surface border border-border rounded-lg p-6 mb-8 animate-fade-in shadow-sm font-sans">
+        <div className="w-full bg-surface border border-border rounded-lg p-6 mb-8 animate-fade-in shadow-sm font-sans">
             <div className="flex items-center gap-2 mb-3 text-primary font-medium">
                 <Sparkles className="w-4 h-4 text-scira-accent" />
                 <span className="text-sm font-semibold">Copilot</span>
@@ -157,8 +159,8 @@ const MessageItem: React.FC<MessageItemProps> = ({
   // User Message (Title Style)
   if (msg.role === 'user') {
     return (
-      <div className="w-full max-w-3xl mx-auto pt-12 pb-8 px-4 md:px-0 animate-fade-in">
-         <h1 className="text-[32px] md:text-[36px] font-normal text-primary tracking-tight leading-[1.2]">
+      <div className="w-full max-w-7xl mx-auto pt-10 pb-6 px-4 md:px-8 animate-fade-in border-b border-border/20">
+         <h1 className="text-[32px] md:text-[36px] font-medium text-primary font-serif tracking-tight leading-[1.2]">
             {msg.content}
          </h1>
       </div>
@@ -168,113 +170,204 @@ const MessageItem: React.FC<MessageItemProps> = ({
   // Copilot Active State
   if (msg.isCopilotActive && msg.copilotStep) {
       return (
-          <div className="w-full max-w-3xl mx-auto px-4 md:px-0 pb-12">
+          <div className="w-full max-w-3xl mx-auto px-4 md:px-0 pb-12 pt-8">
               <CopilotWidget step={msg.copilotStep} onAnswer={onCopilotAnswer} />
           </div>
       );
   }
 
-  // Assistant Message
+  // Assistant Message (Split Layout)
   return (
-      <div className="w-full max-w-3xl mx-auto pb-16 px-4 md:px-0 animate-fade-in flex flex-col gap-10">
+      <div className="w-full max-w-7xl mx-auto pb-16 px-4 md:px-8 animate-fade-in pt-8">
         
-        {/* Loading State - "Summarizing · Model" */}
-        {isLoading && isLast && !msg.content && (
-             <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300 mt-2">
-                {msg.sources && msg.sources.length === 0 && (
-                     <div className="flex flex-col gap-2 pl-0 mb-4">
-                         <div className="flex items-center gap-2 text-sm text-[#21808D] font-medium">
-                             <Globe className="w-3.5 h-3.5" />
-                             <span>Searching web</span>
-                         </div>
-                     </div>
-                )}
-                <div className="flex items-center gap-3 text-primary font-medium">
-                     <div className="w-5 h-5 flex items-center justify-center">
-                         <div className="w-2.5 h-2.5 bg-scira-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(33,128,141,0.6)]" />
-                     </div>
-                     <span className="text-lg font-sans text-primary">Summarizing · {modelName}</span>
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_350px] gap-10">
+            {/* LEFT COLUMN: Main Content */}
+            <div className="min-w-0 flex flex-col gap-8">
+                
+                {/* Copilot Status Bar (Collapsible Look) */}
+                <div className="flex items-center justify-between py-3 px-4 bg-surface border border-border rounded-xl">
+                    <div className="flex items-center gap-2 text-primary font-medium">
+                        <Sparkles className="w-4 h-4 text-scira-accent" />
+                        <span>Copilot</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-muted">
+                        <span>{isLoading ? 'Thinking...' : 'Completed'}</span>
+                        <ChevronDown className="w-4 h-4" />
+                    </div>
                 </div>
-             </div>
-        )}
 
-        {/* 1. QUICK SEARCH (SOURCES) */}
-        {msg.sources && msg.sources.length > 0 && (
-            <div className="animate-in fade-in duration-500">
-                <div className="flex items-center gap-2 mb-4 text-primary">
-                    <Zap className="w-5 h-5 fill-current" />
-                    <h3 className="text-xl font-medium font-sans">Quick Search</h3>
-                </div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {msg.sources.slice(0, 4).map((source, idx) => (
-                        <a 
-                            key={idx}
-                            href={source.link}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="flex flex-col p-3 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-all h-[95px] justify-between group"
-                        >
-                            <div className="text-[13px] font-medium text-primary line-clamp-2 leading-snug font-sans">
-                                {source.title}
-                            </div>
-                            <div className="flex items-center gap-2 mt-2">
-                                <div className="w-4 h-4 rounded-full bg-border/50 overflow-hidden shrink-0">
+                {/* Loading State */}
+                {isLoading && isLast && !msg.content && (
+                    <div className="flex items-center gap-3 text-primary font-medium">
+                        <div className="w-5 h-5 flex items-center justify-center">
+                            <div className="w-2.5 h-2.5 bg-scira-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(33,128,141,0.6)]" />
+                        </div>
+                        <span className="text-lg font-sans text-primary">Summarizing · {modelName}</span>
+                    </div>
+                )}
+
+                {/* Sources - Compact Cards */}
+                {msg.sources && msg.sources.length > 0 && (
+                    <div>
+                        <div className="flex items-center gap-2 mb-3 text-primary">
+                            <AlignLeft className="w-5 h-5" />
+                            <h3 className="text-lg font-medium font-sans">Sources</h3>
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                            {msg.sources.slice(0, 4).map((source, idx) => (
+                                <a 
+                                    key={idx}
+                                    href={source.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex flex-col p-3 rounded-lg bg-surface hover:bg-surface-hover border border-border transition-all h-[80px] justify-between group"
+                                >
+                                    <div className="text-[13px] font-medium text-primary line-clamp-2 leading-snug font-sans">
+                                        {source.title}
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-4 h-4 rounded-full bg-border/50 overflow-hidden shrink-0">
+                                            <img 
+                                                src={`https://www.google.com/s2/favicons?domain=${new URL(source.link).hostname}&sz=32`}
+                                                className="w-full h-full object-cover opacity-80"
+                                                onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
+                                                alt=""
+                                            />
+                                        </div>
+                                        <div className="text-[11px] text-muted truncate">
+                                            {source.displayLink}
+                                        </div>
+                                    </div>
+                                </a>
+                            ))}
+                            {msg.sources.length > 4 && (
+                                <button className="flex items-center justify-center p-3 rounded-lg bg-surface hover:bg-surface-hover border border-border transition-all h-[80px] text-xs font-medium text-muted hover:text-primary">
+                                    View {msg.sources.length - 4} more
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Answer Content */}
+                {msg.content && (
+                    <div className="min-h-[20px]">
+                        <div className="flex items-center gap-2 mb-2 text-primary">
+                            <AlignLeft className="w-5 h-5 text-scira-accent" />
+                            <h3 className="text-lg font-medium font-sans">Answer</h3>
+                        </div>
+                        <MessageContent 
+                            content={msg.content} 
+                            isStreaming={isLast && isLoading} 
+                            sources={msg.sources}
+                        />
+                    </div>
+                )}
+
+                {/* Related Questions */}
+                {msg.relatedQuestions && msg.relatedQuestions.length > 0 && (
+                    <div className="pt-4 border-t border-border mt-2">
+                        <div className="flex items-center gap-2 mb-3 text-primary">
+                            <Layers className="w-5 h-5" />
+                            <h3 className="text-lg font-medium font-sans">Related</h3>
+                        </div>
+                        <div className="flex flex-col gap-0">
+                            {msg.relatedQuestions.map((q, idx) => (
+                                <div 
+                                key={idx} 
+                                className="flex items-center justify-between py-3 hover:bg-surface-hover cursor-pointer border-b border-border/40 group transition-colors px-1"
+                                onClick={() => { /* Handle click */ }}
+                                >
+                                    <span className="text-primary/90 font-medium text-[15px]">{q}</span>
+                                    <Plus className="w-4 h-4 text-muted group-hover:text-primary transition-transform group-hover:rotate-90" />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+
+            {/* RIGHT COLUMN: Media Gallery */}
+            <div className="flex flex-col gap-6">
+                
+                {/* Images Section */}
+                {msg.images && msg.images.length > 0 && (
+                     <div className="animate-in fade-in slide-in-from-right-4 duration-500">
+                        <div className="grid grid-cols-2 gap-2">
+                            {/* Featured large image */}
+                            {msg.images[0] && (
+                                <div className="col-span-2 aspect-video rounded-xl overflow-hidden border border-border bg-surface-hover relative group cursor-pointer">
                                     <img 
-                                        src={`https://www.google.com/s2/favicons?domain=${new URL(source.link).hostname}&sz=32`}
-                                        className="w-full h-full object-cover opacity-80"
-                                        onError={(e) => (e.target as HTMLImageElement).style.display = 'none'}
-                                        alt=""
+                                        src={msg.images[0].image} 
+                                        alt={msg.images[0].title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                                     />
                                 </div>
-                                <div className="text-[11px] text-muted truncate max-w-full">
-                                    {source.displayLink}
+                            )}
+                            {/* Smaller images */}
+                            {msg.images.slice(1, 3).map((img, idx) => (
+                                <div key={idx} className="aspect-square rounded-xl overflow-hidden border border-border bg-surface-hover relative group cursor-pointer">
+                                     <img 
+                                        src={img.image} 
+                                        alt={img.title}
+                                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                                    />
                                 </div>
-                                <div className="ml-auto text-[10px] text-muted opacity-50 font-mono">
-                                    {idx + 1}
+                            ))}
+                            {/* View More Placeholder */}
+                            {msg.images.length > 3 && (
+                                <div className="aspect-square rounded-xl overflow-hidden border border-border bg-surface-hover flex items-center justify-center cursor-pointer hover:bg-border/50 transition-colors">
+                                    <div className="flex flex-col items-center gap-1 text-muted">
+                                        <ImageIcon className="w-5 h-5" />
+                                        <span className="text-xs font-medium">View more</span>
+                                    </div>
                                 </div>
-                            </div>
-                        </a>
-                    ))}
-                </div>
-            </div>
-        )}
-
-        {/* 2. ANSWER */}
-        {msg.content && (
-            <div className="min-h-[20px]">
-                <div className="flex items-center gap-2 mb-2 text-primary">
-                    <ImpersioLogo className="w-5 h-5 text-scira-accent" />
-                    <h3 className="text-xl font-medium font-sans">Answer</h3>
-                </div>
-                <MessageContent 
-                    content={msg.content} 
-                    isStreaming={isLast && isLoading} 
-                    sources={msg.sources}
-                />
-            </div>
-        )}
-
-        {/* 3. RELATED QUESTIONS */}
-        {msg.relatedQuestions && msg.relatedQuestions.length > 0 && (
-            <div className="pt-6 border-t border-border mt-2">
-                <div className="flex items-center gap-2 mb-4 text-primary">
-                    <Layers className="w-5 h-5" />
-                    <h3 className="text-xl font-medium font-sans">Related</h3>
-                </div>
-                <div className="flex flex-col gap-0">
-                    {msg.relatedQuestions.map((q, idx) => (
-                        <div 
-                           key={idx} 
-                           className="flex items-center justify-between py-3.5 hover:bg-surface-hover cursor-pointer border-b border-border/40 group transition-colors px-1"
-                           onClick={() => { /* Handle click in parent or context */ }}
-                        >
-                            <span className="text-primary/90 font-medium text-[16px]">{q}</span>
-                            <Plus className="w-5 h-5 text-muted group-hover:text-primary transition-transform group-hover:rotate-90" />
+                            )}
                         </div>
-                    ))}
-                </div>
+                     </div>
+                )}
+
+                {/* Videos Section */}
+                {msg.videos && msg.videos.length > 0 && (
+                     <div className="animate-in fade-in slide-in-from-right-4 duration-700 delay-100">
+                        <div className="flex flex-col gap-3">
+                             {msg.videos.slice(0, 3).map((vid, idx) => (
+                                 <a 
+                                    key={idx}
+                                    href={vid.link}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="flex gap-3 p-2 rounded-xl bg-surface hover:bg-surface-hover border border-border transition-colors group"
+                                 >
+                                     <div className="w-24 h-16 rounded-lg bg-black/10 overflow-hidden relative shrink-0">
+                                         {vid.image ? (
+                                             <img src={vid.image} className="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" alt="" />
+                                         ) : (
+                                             <div className="w-full h-full flex items-center justify-center bg-gray-800">
+                                                 <PlayCircle className="w-6 h-6 text-white/50" />
+                                             </div>
+                                         )}
+                                         <div className="absolute inset-0 flex items-center justify-center">
+                                             <div className="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center backdrop-blur-sm">
+                                                <PlayCircle className="w-4 h-4 text-white fill-current" />
+                                             </div>
+                                         </div>
+                                     </div>
+                                     <div className="flex flex-col justify-center min-w-0">
+                                         <span className="text-xs font-medium text-primary line-clamp-2 leading-snug group-hover:text-[#21808D] transition-colors">
+                                             {vid.title}
+                                         </span>
+                                         <span className="text-[10px] text-muted mt-1">YouTube</span>
+                                     </div>
+                                 </a>
+                             ))}
+                        </div>
+                     </div>
+                )}
+
             </div>
-        )}
+        </div>
+
       </div>
   );
 };
@@ -321,15 +414,20 @@ export default function App() {
 
     if (!hasSearched) setHasSearched(true);
 
-    // Add User Message
+    // 1. Create new messages locally first
     const userMsg: Message = { role: 'user', content: finalQuery };
-    setMessages(prev => [...prev, userMsg]);
+    const assistantMsg: Message = { role: 'assistant', content: '', sources: [], images: [], videos: [] };
 
-    // Add Placeholder Assistant Message
-    setMessages(prev => [...prev, { role: 'assistant', content: '', sources: [] }]);
+    // 2. Update state safely
+    setMessages(prev => [...prev, userMsg, assistantMsg]);
+
+    // 3. Construct history for the API call (including the new user message)
+    // Note: We cannot use 'messages' state here as it is stale.
+    const currentHistory = [...messages, userMsg];
 
     try {
         // --- COPILOT LOGIC ---
+        // Only run copilot analysis step if mode is explicitly ON
         if (isCopilotMode) {
              const copilotStep = await generateCopilotStep(finalQuery);
              
@@ -338,19 +436,21 @@ export default function App() {
                  setMessages(prev => {
                      const newMsgs = [...prev];
                      const last = newMsgs[newMsgs.length - 1];
-                     last.isCopilotActive = true;
-                     last.copilotStep = copilotStep;
-                     // Store original query in content for now or separate state
-                     last.content = finalQuery; // Keep track of what we are solving
+                     // Safety check
+                     if (last) {
+                         last.isCopilotActive = true;
+                         last.copilotStep = copilotStep;
+                         last.content = finalQuery; 
+                     }
                      return newMsgs;
                  });
-                 setIsLoading(false); // Stop generic loading, waiting for user input
+                 setIsLoading(false); 
                  return;
              }
         }
 
         // --- STANDARD SEARCH ---
-        await executeSearch(finalQuery, messages);
+        await executeSearch(finalQuery, currentHistory);
 
     } catch (e) {
         console.error(e);
@@ -360,21 +460,50 @@ export default function App() {
 
   const executeSearch = async (searchQuery: string, history: Message[]) => {
       setIsLoading(true);
+
+      // --- SEARCH DECISION ---
+      // STRICT: Only search if Copilot Mode is ON, otherwise use pure LLM.
+      const needsSearch = isCopilotMode;
       
-      const { results } = await searchFast(searchQuery);
+      let results: SearchResult[] = [];
+      let images: SearchResult[] = [];
+      let videos: SearchResult[] = [];
+
+      if (needsSearch) {
+          try {
+              // Parallelize Text and Media Search
+              const [textRes, mediaRes] = await Promise.all([
+                  searchFast(searchQuery),
+                  searchMedia(searchQuery)
+              ]);
+              
+              results = textRes.results;
+              images = mediaRes.images;
+              videos = mediaRes.videos;
+          } catch (e) {
+              console.warn("Search failed, proceeding with generation only", e);
+          }
+      }
       
-      // Update sources immediately
+      // Update sources and media immediately
       setMessages(prev => {
           const newMsgs = [...prev];
+          if (newMsgs.length === 0) return prev;
+          
           const last = newMsgs[newMsgs.length - 1];
-          last.sources = results;
-          last.isCopilotActive = false; 
+          // Safety check for last message existence
+          if (last) {
+              last.sources = results;
+              last.images = images;
+              last.videos = videos;
+              last.isCopilotActive = false; 
+          }
           return newMsgs;
       });
 
       await streamResponse(
           searchQuery,
-          selectedModel.id, // Use selected model
+          selectedModel.id, 
           history.slice(-6),
           results,
           [],
@@ -383,8 +512,11 @@ export default function App() {
           (chunk) => {
               setMessages(prev => {
                   const newMsgs = [...prev];
+                  if (newMsgs.length === 0) return prev;
                   const last = newMsgs[newMsgs.length - 1];
-                  last.content = chunk;
+                  if (last) {
+                      last.content = chunk;
+                  }
                   return newMsgs;
               });
           },
@@ -392,8 +524,11 @@ export default function App() {
           (related) => {
               setMessages(prev => {
                   const newMsgs = [...prev];
+                  if (newMsgs.length === 0) return prev;
                   const last = newMsgs[newMsgs.length - 1];
-                  last.relatedQuestions = related;
+                  if (last) {
+                    last.relatedQuestions = related;
+                  }
                   return newMsgs;
               });
           },
@@ -402,8 +537,9 @@ export default function App() {
           (sources) => {
               setMessages(prev => {
                   const newMsgs = [...prev];
+                  if (newMsgs.length === 0) return prev;
                   const last = newMsgs[newMsgs.length - 1];
-                  if (!last.sources || last.sources.length === 0) {
+                  if (last && (!last.sources || last.sources.length === 0)) {
                       last.sources = sources;
                   }
                   return newMsgs;
@@ -415,21 +551,32 @@ export default function App() {
   };
 
   const handleCopilotAnswer = async (answer: string) => {
-      const currentMsgs = [...messages];
-      const lastMsg = currentMsgs[currentMsgs.length - 1];
+      // Find the question we are answering
+      const lastMsg = messages[messages.length - 1];
       const originalQuery = lastMsg.content; 
-
+      
+      // We need to pass the history up to the user message
+      // Messages state has [..., UserMsg, AssistantMsg(Copilot)]
+      // We want to reuse the AssistantMsg or replace it.
+      // Let's reset the assistant message to empty and load it.
+      
       const refinedQuery = `${originalQuery} (User Clarification: ${answer})`;
       
       setMessages(prev => {
           const newMsgs = [...prev];
           const last = newMsgs[newMsgs.length - 1];
-          last.isCopilotActive = false; 
-          last.content = ''; 
+          if (last) {
+            last.isCopilotActive = false; 
+            last.content = ''; // Reset content to stream new answer
+            last.copilotStep = undefined;
+          }
           return newMsgs;
       });
 
-      await executeSearch(refinedQuery, currentMsgs);
+      // Pass history excluding the last assistant placeholder which is currently active
+      const historyForGen = messages.slice(0, -1);
+      
+      await executeSearch(refinedQuery, historyForGen);
   };
 
   const renderInputBar = (isInitial: boolean) => {
@@ -474,8 +621,10 @@ export default function App() {
                   )}
 
                   <div className="flex items-center gap-3 ml-auto">
+                        
+                        {/* Copilot Toggle inside the search bar */}
                         <div 
-                            className="flex items-center gap-2 cursor-pointer group select-none" 
+                            className="flex items-center gap-2 cursor-pointer group select-none bg-surface-hover/50 px-2 py-1 rounded-full border border-transparent hover:border-border transition-all" 
                             onClick={() => setIsCopilotMode(!isCopilotMode)}
                         >
                             <div className={`
@@ -487,7 +636,7 @@ export default function App() {
                                     ${isCopilotMode ? 'translate-x-3.5' : 'translate-x-0'}
                                 `} />
                             </div>
-                            <span className={`text-sm font-medium ${isCopilotMode ? 'text-[#21808D]' : 'text-muted'} ${!isInitial && 'hidden sm:block'}`}>Copilot</span>
+                            <span className={`text-xs font-medium ${isCopilotMode ? 'text-[#21808D]' : 'text-muted'}`}>Copilot</span>
                         </div>
 
                         {/* Divider */}
@@ -562,7 +711,7 @@ export default function App() {
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col relative h-full">
-                        <div className="flex-1 overflow-y-auto pb-44 pt-6 px-4 md:px-0 scroll-smooth">
+                        <div className="flex-1 overflow-y-auto pb-44 pt-6 px-0 scroll-smooth">
                           <div className="flex flex-col w-full"> 
                             {messages.map((msg, idx) => (
                                 <MessageItem 

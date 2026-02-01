@@ -1,3 +1,4 @@
+
 import { SearchResult } from "../types";
 
 // Access keys from environment variables configured in vite.config.ts
@@ -96,7 +97,7 @@ export const searchWeb = async (query: string, mode: string = 'web'): Promise<{ 
         api_key: tavilyKey,
         query: query,
         search_depth: searchDepth,
-        include_images: false, // Explicitly disabled
+        include_images: false, // Explicitly disabled here, we use searchMedia for images
         max_results: maxResults, 
         include_domains: includeDomains,
         topic: topic
@@ -126,6 +127,74 @@ export const searchWeb = async (query: string, mode: string = 'web'): Promise<{ 
     console.error("Search Error:", error);
     return { results: [] };
   }
+};
+
+// Dedicated function for populating the Media Gallery (Images & Videos)
+export const searchMedia = async (query: string): Promise<{ images: SearchResult[], videos: SearchResult[] }> => {
+    const tavilyKey = getTavilyKey();
+    if (!tavilyKey) return { images: [], videos: [] };
+
+    try {
+        const response = await fetch("https://api.tavily.com/search", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                api_key: tavilyKey,
+                query: query,
+                search_depth: "basic",
+                include_images: true,
+                max_results: 8,
+                include_image_descriptions: true
+            }),
+        });
+
+        if (!response.ok) return { images: [], videos: [] };
+
+        const data = await response.json();
+        
+        // Tavily returns images in a separate 'images' array
+        const images: SearchResult[] = (data.images || []).map((img: any) => ({
+            title: img.description || "Image",
+            link: img.url,
+            snippet: "",
+            displayLink: "Image",
+            image: img.url 
+        }));
+
+        // We can simulate "videos" by filtering results for youtube/vimeo or if Tavily returns them
+        // For now, we'll try to find video-like results in the text results or use a specific query if needed.
+        // A simple heuristic: check if we have any youtube links in the main results, 
+        // OR perform a quick secondary search for videos.
+        
+        // Let's do a quick video specific search if the user asked for videos, 
+        // or just rely on the main search results having video links.
+        // For the UI "Thumbnail" requirement, we'll try to map standard YouTube links to thumbnails.
+        
+        const videos: SearchResult[] = (data.results || [])
+            .filter((r: any) => r.url.includes('youtube.com') || r.url.includes('vimeo.com'))
+            .map((r: any) => {
+                let thumb = "";
+                if (r.url.includes('youtube.com/watch')) {
+                    try {
+                        const vId = new URL(r.url).searchParams.get('v');
+                        if (vId) thumb = `https://img.youtube.com/vi/${vId}/mqdefault.jpg`;
+                    } catch(e) {}
+                }
+                return {
+                    title: r.title,
+                    link: r.url,
+                    snippet: r.content,
+                    displayLink: "YouTube",
+                    image: thumb
+                };
+            });
+
+        return { images, videos };
+
+    } catch (e) {
+        console.error("Media Search Error", e);
+        return { images: [], videos: [] };
+    }
 };
 
 export const searchNews = async (query: string) => {

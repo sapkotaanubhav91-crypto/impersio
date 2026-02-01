@@ -1,3 +1,4 @@
+
 import React from 'react';
 
 export interface SearchMode {
@@ -60,7 +61,11 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   sources?: SearchResult[];
-  images?: string[]; 
+  
+  // Media Gallery
+  images?: SearchResult[]; 
+  videos?: SearchResult[];
+
   relatedQuestions?: string[];
   
   // Copilot specific
