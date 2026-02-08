@@ -1,23 +1,15 @@
 
 import React from 'react';
 import { 
-  Search,
-  Compass,
-  Library,
   Plus,
-  PanelLeftClose,
-  MoreHorizontal
+  Clock,
+  LayoutGrid,
+  MoreHorizontal,
+  ArrowUpCircle,
+  Bell,
+  Newspaper,
+  User as UserIcon
 } from 'lucide-react';
-import { 
-  Sidebar, 
-  SidebarContent, 
-  SidebarFooter, 
-  SidebarHeader, 
-  SidebarMenu, 
-  SidebarMenuItem, 
-  SidebarMenuButton,
-  useSidebar
-} from './ui/sidebar';
 import { ImpersioLogo } from './Icons';
 import { User } from '../types';
 
@@ -36,121 +28,95 @@ export const AppSidebar: React.FC<AppSidebarProps> = ({
   onSignIn,
   user
 }) => {
-  const { state, toggleSidebar } = useSidebar();
-  const isCollapsed = state === "collapsed";
-
   return (
-    <Sidebar collapsible="icon" className="border-r border-border bg-sidebar transition-all duration-300">
-      <SidebarHeader className="px-3 py-4">
-        <div className="flex items-center justify-between group-data-[collapsible=icon]:justify-center">
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden px-2">
-             <ImpersioLogo className="w-8 h-8 text-primary" />
-             <span className="text-xl font-medium tracking-tight text-primary">impersio</span>
+    <div className="w-[72px] flex-none h-full flex flex-col items-center bg-[#fcfcf9] dark:bg-[#191919] border-r border-[#e5e5e5] dark:border-[#333] py-6 z-50 font-sans transition-all duration-300">
+      {/* Logo */}
+      <div className="mb-8 cursor-pointer" onClick={() => onNavigate('home')}>
+         <ImpersioLogo className="w-8 h-8 text-[#1c7483]" />
+      </div>
+
+      {/* New Thread Button */}
+      <div className="mb-6">
+        <button 
+          onClick={onNewChat}
+          className="w-10 h-10 rounded-full bg-[#f3f3ee] hover:bg-[#e8e8e6] dark:bg-[#2A2A2A] dark:hover:bg-[#333] flex items-center justify-center transition-colors group shadow-sm hover:shadow-md"
+          title="New Thread"
+        >
+          <Plus className="w-5 h-5 text-primary/70 group-hover:text-primary transition-colors" />
+        </button>
+      </div>
+
+      {/* Menu Items */}
+      <div className="flex flex-col gap-4 w-full items-center">
+        
+        <button 
+          onClick={() => onNavigate('home')}
+          className="group flex flex-col items-center gap-1 w-full px-1"
+        >
+          <div className={`p-1.5 rounded-lg transition-colors ${currentView === 'home' ? 'bg-[#e8e8e6] dark:bg-[#333] text-primary' : 'text-muted group-hover:text-primary group-hover:bg-[#f3f3ee] dark:group-hover:bg-[#2A2A2A]'}`}>
+             <Clock className="w-5 h-5" />
           </div>
-          {/* Mobile/Collapsed Logo */}
-          <div className="hidden group-data-[collapsible=icon]:flex items-center justify-center">
-             <ImpersioLogo className="w-8 h-8 text-primary" />
+          <span className={`text-[10px] font-medium ${currentView === 'home' ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>History</span>
+        </button>
+
+        <button 
+          onClick={() => onNavigate('discover')}
+          className="group flex flex-col items-center gap-1 w-full px-1"
+        >
+          <div className={`p-1.5 rounded-lg transition-colors ${currentView === 'discover' ? 'bg-[#e8e8e6] dark:bg-[#333] text-primary' : 'text-muted group-hover:text-primary group-hover:bg-[#f3f3ee] dark:group-hover:bg-[#2A2A2A]'}`}>
+             <Newspaper className="w-5 h-5" />
           </div>
+          <span className={`text-[10px] font-medium ${currentView === 'discover' ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>Discover</span>
+        </button>
 
-          <button 
-            onClick={toggleSidebar}
-            className="p-1.5 text-muted hover:text-primary hover:bg-surface-hover rounded-md transition-colors group-data-[collapsible=icon]:hidden"
-          >
-             <PanelLeftClose className="w-5 h-5" />
-          </button>
-        </div>
-      </SidebarHeader>
+        <button 
+          onClick={() => onNavigate('library')}
+          className="group flex flex-col items-center gap-1 w-full px-1"
+        >
+          <div className={`p-1.5 rounded-lg transition-colors ${currentView === 'library' ? 'bg-[#e8e8e6] dark:bg-[#333] text-primary' : 'text-muted group-hover:text-primary group-hover:bg-[#f3f3ee] dark:group-hover:bg-[#2A2A2A]'}`}>
+             <LayoutGrid className="w-5 h-5" />
+          </div>
+          <span className={`text-[10px] font-medium ${currentView === 'library' ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>Spaces</span>
+        </button>
 
-      <SidebarContent className="px-2 py-2 flex flex-col gap-4">
-        {/* New Thread Button */}
-        <div className="px-1">
-          <button 
-            onClick={onNewChat}
-            className={`
-              w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-full border border-border bg-white dark:bg-[#1C1C1C] hover:bg-surface-hover shadow-sm transition-all group
-              group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0 group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:rounded-full
-            `}
-            title="New Thread"
-          >
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-muted group-hover:text-primary group-data-[collapsible=icon]:hidden">New Thread</span>
-              <Plus className="w-4 h-4 text-muted group-hover:text-primary group-data-[collapsible=icon]:block hidden" />
-            </div>
-            <div className="flex items-center gap-1 group-data-[collapsible=icon]:hidden">
-               <div className="w-5 h-5 flex items-center justify-center rounded-md border border-border/50 bg-surface/50">
-                  <span className="text-[10px] text-muted">K</span>
-               </div>
-            </div>
-            {/* Expanded State Plus Icon for Desktop */}
-             <Plus className="w-4 h-4 text-muted group-hover:text-primary group-data-[collapsible=icon]:hidden" />
-          </button>
-        </div>
+        <button 
+           className="group flex flex-col items-center gap-1 w-full px-1"
+        >
+          <div className="p-1.5 rounded-lg transition-colors text-muted group-hover:text-primary group-hover:bg-[#f3f3ee] dark:group-hover:bg-[#2A2A2A]">
+             <MoreHorizontal className="w-5 h-5" />
+          </div>
+          <span className="text-[10px] font-medium text-muted group-hover:text-primary">More</span>
+        </button>
 
-        {/* Primary Menu */}
-        <SidebarMenu className="gap-1">
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              isActive={currentView === 'home'} 
-              onClick={() => onNavigate('home')}
-              tooltip="Home"
-              className="px-3 py-2.5 h-auto rounded-lg hover:bg-surface-hover group transition-colors"
-            >
-              <Search className={`w-5 h-5 ${currentView === 'home' ? 'text-primary' : 'text-muted group-hover:text-primary'}`} />
-              <span className={`text-[15px] font-medium ${currentView === 'home' ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>Home</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+      </div>
 
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              isActive={currentView === 'discover'} 
-              onClick={() => onNavigate('discover')}
-              tooltip="Discover"
-              className="px-3 py-2.5 h-auto rounded-lg hover:bg-surface-hover group transition-colors"
-            >
-              <Compass className={`w-5 h-5 ${currentView === 'discover' ? 'text-primary' : 'text-muted group-hover:text-primary'}`} />
-              <span className={`text-[15px] font-medium ${currentView === 'discover' ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>Discover</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+      {/* Spacer */}
+      <div className="flex-1"></div>
 
-          <SidebarMenuItem>
-            <SidebarMenuButton 
-              isActive={currentView === 'library'} 
-              onClick={() => onNavigate('library')}
-              tooltip="Library"
-              className="px-3 py-2.5 h-auto rounded-lg hover:bg-surface-hover group transition-colors"
-            >
-              <Library className={`w-5 h-5 ${currentView === 'library' ? 'text-primary' : 'text-muted group-hover:text-primary'}`} />
-              <span className={`text-[15px] font-medium ${currentView === 'library' ? 'text-primary' : 'text-muted group-hover:text-primary'}`}>Library</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
-      </SidebarContent>
+      {/* Footer */}
+      <div className="flex flex-col items-center gap-4 mb-2 w-full">
+         <button className="text-muted hover:text-primary transition-colors p-2" title="Upgrade">
+             <ArrowUpCircle className="w-5 h-5" />
+         </button>
+         
+         <div className="relative">
+            <button className="text-muted hover:text-primary transition-colors p-2">
+                <Bell className="w-5 h-5" />
+            </button>
+            <div className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#1c7483] rounded-full border border-background"></div>
+         </div>
 
-      <SidebarFooter className="px-2 pb-4">
-        {user ? (
-           <button 
-             className="w-full flex items-center gap-2 p-2 hover:bg-surface-hover rounded-lg transition-colors group group-data-[collapsible=icon]:justify-center"
-             onClick={onSignIn} // Open profile/settings
-           >
-              <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-xs font-medium text-primary border border-border">
-                  {user.email?.[0].toUpperCase()}
-              </div>
-              <div className="flex-1 text-left min-w-0 group-data-[collapsible=icon]:hidden">
-                 <div className="text-sm font-medium text-primary truncate">{user.full_name || 'User'}</div>
-              </div>
-           </button>
-        ) : (
-          <button 
+         <button 
             onClick={onSignIn}
-            className="w-full flex items-center gap-2 p-2 hover:bg-surface-hover rounded-lg transition-colors group group-data-[collapsible=icon]:justify-center"
-          >
-             <div className="w-8 h-8 rounded-full bg-surface-hover flex items-center justify-center text-muted">
-                 <MoreHorizontal className="w-4 h-4" />
-             </div>
-             <span className="text-sm font-medium text-muted group-hover:text-primary group-data-[collapsible=icon]:hidden">Sign Up</span>
-          </button>
-        )}
-      </SidebarFooter>
-    </Sidebar>
+            className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center overflow-hidden hover:ring-2 hover:ring-border transition-all"
+         >
+            {user ? (
+                <span className="text-[10px] font-bold text-primary">{user.email?.[0].toUpperCase()}</span>
+            ) : (
+                <UserIcon className="w-4 h-4 text-muted" />
+            )}
+         </button>
+      </div>
+    </div>
   );
 };

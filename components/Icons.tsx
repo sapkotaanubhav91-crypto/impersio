@@ -8,6 +8,17 @@ export const ImpersioLogo = ({ className }: { className?: string }) => (
   </svg>
 );
 
+// Sound Wave Icon for the submit button
+export const SoundWaveIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M12 3v18" />
+    <path d="M16 8v8" />
+    <path d="M20 11v2" />
+    <path d="M8 8v8" />
+    <path d="M4 11v2" />
+  </svg>
+);
+
 // Icon for Google's Gemini AI
 export const GeminiIcon = ({ className }: { className?: string }) => (
   <svg viewBox="0 0 24 24" fill="none" className={className}>

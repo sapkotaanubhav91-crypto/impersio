@@ -1,7 +1,7 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { 
   ArrowRight,
-  Search,
   ArrowUp,
   Share2,
   Copy,
@@ -12,9 +12,10 @@ import {
   Zap,
   Code as CodeIcon,
   CircleDashed,
-  Paperclip,
   Globe,
-  Plus
+  Plus,
+  Mic,
+  MoreHorizontal
 } from 'lucide-react';
 import { streamResponse } from './services/geminiService';
 import { searchFast } from './services/googleSearchService';
@@ -26,10 +27,9 @@ import { AuthModal } from './components/AuthModal';
 import { AppSidebar } from './components/AppSidebar';
 import { MessageContent } from './components/MessageContent';
 import { useTheme } from './hooks/useTheme';
-import { SidebarProvider, SidebarInset } from './components/ui/sidebar';
 import { createConversation, saveMessage, getConversationMessages } from './services/chatStorageService';
 import { ModelSelector } from './components/ModelSelector';
-import { MetaIcon, GeminiIcon, ImpersioLogo } from './components/Icons';
+import { MetaIcon, GeminiIcon, ImpersioLogo, SoundWaveIcon } from './components/Icons';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { Thinking } from './components/Thinking';
 
@@ -54,7 +54,7 @@ const MessageItem: React.FC<{
   if (msg.role === 'user') {
     return (
       <div className="w-full max-w-3xl mx-auto pt-10 pb-6 px-4 animate-fade-in">
-         <h1 className="text-[32px] font-medium text-primary font-sans tracking-tight leading-tight">
+         <h1 className="text-[32px] font-medium text-primary tracking-tight leading-tight font-sans">
            {msg.content}
          </h1>
       </div>
@@ -69,7 +69,7 @@ const MessageItem: React.FC<{
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto pb-12 px-4 animate-fade-in">
+    <div className="w-full max-w-3xl mx-auto pb-12 px-4 animate-fade-in font-sans">
       <div className="flex flex-col gap-6">
         
         {/* Sources Section (Above Answer) */}
@@ -283,10 +283,10 @@ export default function App() {
 
   const renderInputBar = (isInitial: boolean) => {
     return (
-      <div className={`w-full ${isInitial ? 'max-w-3xl' : 'max-w-3xl'} mx-auto relative z-30 px-4`}>
+      <div className={`w-full ${isInitial ? 'max-w-[700px]' : 'max-w-3xl'} mx-auto relative z-30 px-4`}>
         <div className={`
-          relative flex flex-col w-full bg-surface border border-border transition-all duration-300
-          ${isInitial ? 'rounded-[20px] p-4 shadow-sm hover:border-border/80 hover:shadow-md' : 'rounded-full p-2 px-4 shadow-elegant mb-6'}
+          relative flex flex-col w-full bg-white dark:bg-[#202020] border border-gray-200 dark:border-gray-700 transition-all duration-300
+          ${isInitial ? 'rounded-[24px] p-4 shadow-sm hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md' : 'rounded-full p-2 px-4 shadow-elegant mb-6'}
         `}>
           {isInitial ? (
              <>
@@ -300,40 +300,44 @@ export default function App() {
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
                   placeholder="Ask anything..."
-                  className="w-full bg-transparent text-primary placeholder:text-muted/60 font-medium focus:outline-none resize-none overflow-hidden font-sans text-xl mb-4 leading-relaxed"
-                  style={{ minHeight: '52px' }}
+                  className="w-full bg-transparent text-primary placeholder:text-gray-400 font-normal focus:outline-none resize-none overflow-hidden text-lg mb-8 leading-relaxed ml-1 font-sans"
+                  style={{ minHeight: '28px' }}
                   rows={1}
                   autoFocus
                 />
                 
-                <div className="flex items-center justify-between mt-auto pt-2">
+                <div className="flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-hover hover:bg-border/50 text-muted hover:text-primary font-medium text-xs transition-colors">
-                       <span className="font-bold">Focus</span>
-                    </button>
-                    <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-hover hover:bg-border/50 text-muted hover:text-primary font-medium text-xs transition-colors">
-                       <Paperclip className="w-3.5 h-3.5" /> Attach
-                    </button>
+                     <button className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <Plus className="w-5 h-5" />
+                     </button>
                   </div>
                   
                   <div className="flex items-center gap-3">
-                     {/* Perplexity-style Pro Toggle */}
-                    <div className="flex items-center gap-2 mr-2">
-                       <button 
-                         onClick={() => setIsCopilotMode(!isCopilotMode)}
-                         className={`
-                           flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-bold border transition-all select-none
-                           ${isCopilotMode ? 'bg-surface text-scira-accent border-scira-accent/30' : 'bg-transparent text-muted border-transparent hover:bg-surface-hover'}
-                         `}
-                       >
-                          <div className={`w-8 h-4 rounded-full relative transition-colors duration-200 ${isCopilotMode ? 'bg-scira-accent' : 'bg-border'}`}>
-                             <div className={`absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform duration-200 shadow-sm ${isCopilotMode ? 'translate-x-4' : 'translate-x-0.5'}`} />
-                          </div>
-                          <span>Pro</span>
-                       </button>
+                     {/* Model Selector */}
+                    <div className="flex items-center gap-2">
+                       <ModelSelector
+                            selectedModel={selectedModel}
+                            models={MODELS}
+                            onSelect={setSelectedModel}
+                            isOpen={isModelMenuOpen}
+                            onToggle={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                            isPro={!!user?.is_pro}
+                            onOpenProModal={() => setIsProModalOpen(true)}
+                            trigger={
+                                <button className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-primary transition-colors px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                                    Model <ChevronDown className="w-3 h-3" />
+                                </button>
+                            }
+                        />
                     </div>
+                    
+                    <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
 
-                    <div className="h-5 w-px bg-border/60 mx-1" />
+                    {/* Mic */}
+                    <button className="p-1.5 rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <Mic className="w-4 h-4" />
+                    </button>
 
                     {/* Submit Button */}
                     <button 
@@ -341,10 +345,11 @@ export default function App() {
                       disabled={!query.trim()}
                       className={`
                         flex items-center justify-center rounded-full w-8 h-8 transition-all duration-200
-                        ${query.trim() ? 'bg-scira-accent hover:bg-scira-accent-hover text-white shadow-md' : 'bg-border/50 text-muted cursor-not-allowed'}
+                        ${query.trim() ? 'bg-[#1c7483] hover:bg-[#165f6b] text-white shadow-md' : 'bg-[#e8e8e6] dark:bg-[#333] text-gray-400 cursor-not-allowed'}
                       `}
                     >
-                      <ArrowRight className="w-4 h-4" />
+                      {/* Using the SoundWave icon to match screenshot */}
+                      {query.trim() ? <ArrowRight className="w-4 h-4" /> : <SoundWaveIcon className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
@@ -359,7 +364,7 @@ export default function App() {
                  onChange={(e) => setQuery(e.target.value)}
                  onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
                  placeholder="Ask follow-up..."
-                 className="flex-1 bg-transparent text-primary placeholder:text-muted/60 font-medium focus:outline-none text-[15px]"
+                 className="flex-1 bg-transparent text-primary placeholder:text-muted/60 font-medium focus:outline-none text-[15px] font-sans"
                />
                <div className="flex items-center gap-3 shrink-0">
                    {/* Model Selector in Footer */}
@@ -394,72 +399,73 @@ export default function App() {
   };
 
   return (
-    <SidebarProvider>
-      <div className="min-h-screen bg-background text-primary font-sans selection:bg-scira-accent/20 flex flex-row overflow-hidden w-full">
-        <AppSidebar 
-          currentView={view} 
-          onNavigate={setView} 
-          onNewChat={() => { setMessages([]); setHasSearched(false); setActiveConversationId(null); setView('home'); setSelectedModel(MODELS[0]); }}
-          onSignIn={() => setIsAuthModalOpen(true)}
-          user={user}
-        />
-        
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-        <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
-        
-        <SidebarInset>
-           <div className="absolute inset-0 flex flex-col min-w-0 overflow-hidden bg-background">
-             {view === 'home' && (
-                <div className="flex-1 flex flex-col h-full relative">
-                  {!hasSearched ? (
-                    <div className="flex flex-col items-center justify-center p-4 w-full h-full animate-fade-in relative pb-32">
-                        <div className="w-full max-w-2xl mb-8 flex flex-col items-center text-center">
-                             <h1 className="text-4xl font-medium tracking-tight text-primary font-sans mb-2">
-                                Where knowledge begins
-                             </h1>
-                        </div>
-                        {renderInputBar(true)}
-                        
-                        {/* Suggestion Chips */}
-                        <div className="mt-8 flex flex-wrap justify-center gap-3 opacity-60 max-w-2xl">
-                            {['History of Apple', 'How does AI work?', 'Best movies 2024', 'React vs Vue'].map(item => (
-                                <button key={item} onClick={() => { setQuery(item); handleSearch(item); }} className="px-3 py-1.5 rounded-full bg-surface border border-border text-xs font-medium text-muted hover:text-primary hover:border-primary/30 transition-all">
-                                  {item}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                  ) : (
-                    <div className="flex-1 overflow-y-auto pb-48 pt-0 px-0 scroll-smooth">
-                      <div className="flex flex-col w-full"> 
-                        {messages.map((msg, idx) => ( 
-                          <MessageItem key={idx} msg={msg} isLast={idx === messages.length - 1} isLoading={isLoading} onShare={() => {}} onRewrite={handleSearch} /> 
-                        ))}
-                        <div ref={messagesEndRef} />
+    <div className="flex h-screen w-full bg-background text-primary font-sans selection:bg-[#1c7483]/20">
+      <AppSidebar 
+        currentView={view} 
+        onNavigate={setView} 
+        onNewChat={() => { setMessages([]); setHasSearched(false); setActiveConversationId(null); setView('home'); setSelectedModel(MODELS[0]); }}
+        onSignIn={() => setIsAuthModalOpen(true)}
+        user={user}
+      />
+      
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
+      
+      <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative h-full">
+           {view === 'home' && (
+              <div className="flex-1 flex flex-col h-full relative">
+                {!hasSearched ? (
+                  <div className="flex-1 flex flex-col items-center justify-center p-4">
+                      {/* Center Content with Optical Adjustment (Middle) */}
+                      <div className="w-full max-w-2xl flex flex-col items-center -mt-20 animate-fade-in">
+                           <h1 className="text-[42px] font-medium tracking-tight text-primary mb-8 font-sans">
+                              Impersio
+                           </h1>
+                           {renderInputBar(true)}
                       </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto pb-48 pt-0 px-0 scroll-smooth">
+                    <div className="flex flex-col w-full"> 
+                      {messages.map((msg, idx) => ( 
+                        <MessageItem key={idx} msg={msg} isLast={idx === messages.length - 1} isLoading={isLoading} onShare={() => {}} onRewrite={handleSearch} /> 
+                      ))}
+                      <div ref={messagesEndRef} />
                     </div>
-                  )}
-                  {hasSearched && (
-                    <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-10 pb-6 z-20">
-                        {renderInputBar(false)}
+                  </div>
+                )}
+                
+                {hasSearched && (
+                  <div className="absolute bottom-0 left-0 w-full bg-gradient-to-t from-background via-background/95 to-transparent pt-10 pb-6 z-20">
+                      {renderInputBar(false)}
+                  </div>
+                )}
+                
+                {/* Footer Help/Language Buttons */}
+                {!hasSearched && (
+                    <div className="absolute bottom-6 right-6 flex items-center gap-2">
+                        <button className="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-[#202020] border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-primary transition-colors shadow-sm">
+                            <span className="text-[10px] font-bold">文A</span>
+                        </button>
+                         <button className="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-[#202020] border border-gray-200 dark:border-gray-700 text-gray-400 hover:text-primary transition-colors shadow-sm">
+                            <span className="text-sm font-bold">?</span>
+                        </button>
                     </div>
-                  )}
-                </div>
-             )}
-             {view === 'discover' && <Discover onBack={() => setView('home')} />}
-             {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); setView('home'); }); }} />}
-             {view === 'profile' && (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
-                   <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mb-8 border border-border shadow-sm">
-                      <ImpersioLogo className="w-10 h-10 text-scira-accent" />
-                   </div>
-                   <h2 className="text-2xl font-medium tracking-tight mb-2">Your Profile</h2>
-                   <p className="text-muted max-w-sm text-sm">Settings and preferences coming soon.</p>
-                </div>
-             )}
-           </div>
-        </SidebarInset>
-      </div>
-    </SidebarProvider>
+                )}
+              </div>
+           )}
+           {view === 'discover' && <Discover onBack={() => setView('home')} />}
+           {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); setView('home'); }); }} />}
+           {view === 'profile' && (
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
+                 <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mb-8 border border-border shadow-sm">
+                    <ImpersioLogo className="w-10 h-10 text-scira-accent" />
+                 </div>
+                 <h2 className="text-2xl font-medium tracking-tight mb-2 font-sans">Your Profile</h2>
+                 <p className="text-muted max-w-sm text-sm font-sans">Settings and preferences coming soon.</p>
+              </div>
+           )}
+      </main>
+    </div>
   );
 }

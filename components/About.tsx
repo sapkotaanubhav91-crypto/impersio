@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { PerplexityLogo } from './Icons';
@@ -21,7 +22,7 @@ export const About: React.FC<AboutProps> = ({ onBack }) => {
           </button>
           <div className="opacity-100 flex items-center gap-2">
              <PerplexityLogo className="w-8 h-8 text-primary" />
-             <span className="font-serif text-2xl tracking-tight font-medium">perplexity</span>
+             <span className="text-2xl tracking-tight font-medium font-sans">perplexity</span>
           </div>
         </div>
       </div>
