@@ -13,6 +13,8 @@ export interface ModelOption {
   name: string;
   description?: string;
   icon: React.ElementType;
+  provider?: 'gemini' | 'groq' | 'openrouter';
+  isReasoning?: boolean;
 }
 
 export interface SearchResult {
@@ -67,6 +69,7 @@ export interface CopilotEvent {
 export interface Message {
   role: 'user' | 'assistant';
   content: string;
+  reasoning?: string; // New field for DeepSeek/Reasoning models
   sources?: SearchResult[];
   
   // Media Gallery
@@ -88,4 +91,20 @@ export interface User {
   avatar_url?: string;
   is_pro?: boolean;
   pro_expiry?: string;
+}
+
+export interface SavedConversation {
+  id: string;
+  title: string;
+  snippet?: string;
+  collection_id?: string;
+  created_at: string;
+}
+
+export interface Collection {
+  id: string;
+  title: string;
+  description?: string;
+  icon: string; // Emoji or Lucide icon name
+  created_at: string;
 }

@@ -33,7 +33,8 @@ export const streamOpenRouter = async (
       body: JSON.stringify({
         model: modelId,
         messages: messages,
-        stream: true
+        stream: true,
+        include_reasoning: true // Ensure DeepSeek models return reasoning
       })
     });
 
@@ -71,7 +72,14 @@ export const streamOpenRouter = async (
           try {
             const json = JSON.parse(data);
             const content = json.choices[0]?.delta?.content || '';
-            if (content) onChunk(content);
+            // Some models return reasoning in a separate field (DeepSeek R1 beta)
+            // But we primarily rely on content stream containing <think> tags for standard R1.
+            // If there's explicit reasoning field, we append it with tags to normalize.
+            if (json.choices[0]?.delta?.reasoning) {
+               onChunk(`<think>${json.choices[0].delta.reasoning}</think>`);
+            } else if (content) {
+               onChunk(content);
+            }
           } catch (e) {
             // Ignore parsing errors for partial chunks
           }

@@ -1,7 +1,9 @@
 
 import React, { useEffect, useState } from 'react';
 import { X, LogOut, Plus, LogIn, Info, Sun, Moon, Monitor } from 'lucide-react';
-import { SavedConversation, getUserConversations } from '../services/chatStorageService';
+// Fix: Import SavedConversation from types instead of services/chatStorageService
+import { getUserConversations } from '../services/chatStorageService';
+import { SavedConversation } from '../types';
 
 interface HistorySidebarProps {
   isOpen: boolean;

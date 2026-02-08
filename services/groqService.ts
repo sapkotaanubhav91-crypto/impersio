@@ -18,6 +18,40 @@ export const streamGroq = async (
     throw new Error("Groq API Key not configured. Please add GROQ_API_KEY to your env.");
   }
 
+  // Configuration for specific models
+  let temperature = 0.6;
+  let max_tokens = 4096;
+  let reasoning_effort: string | undefined = undefined;
+
+  if (modelId === 'openai/gpt-oss-120b') {
+      temperature = 1;
+      max_tokens = 8192;
+      reasoning_effort = "medium"; // Enable reasoning for GPT OSS
+  } else if (modelId === 'moonshotai/kimi-k2-instruct-0905') {
+      temperature = 0.6;
+      max_tokens = 4096;
+  } else if (modelId === 'meta-llama/llama-4-scout-17b-16e-instruct') {
+      temperature = 1;
+      max_tokens = 1024;
+  } else if (modelId === 'qwen/qwen3-32b') {
+      temperature = 0.7;
+      max_tokens = 4096;
+  }
+
+  const body: any = {
+    model: modelId,
+    messages: messages,
+    stream: true,
+    temperature: temperature,
+    max_completion_tokens: max_tokens,
+    top_p: 1
+  };
+
+  // Only add reasoning_effort if the model supports it (like GPT OSS)
+  if (reasoning_effort) {
+      body.reasoning_effort = reasoning_effort;
+  }
+
   try {
     const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -25,14 +59,7 @@ export const streamGroq = async (
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({
-        model: modelId,
-        messages: messages,
-        stream: true,
-        temperature: 0.6,
-        max_tokens: 4096,
-        top_p: 1
-      })
+      body: JSON.stringify(body)
     });
 
     if (!response.ok) {

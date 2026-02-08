@@ -1,21 +1,17 @@
 
-import { Message, SearchResult, WidgetData } from '../types';
-
-export interface SavedConversation {
-  id: string;
-  title: string;
-  created_at: string;
-}
+import { Message, SearchResult, WidgetData, SavedConversation, Collection } from '../types';
 
 const CONVERSATIONS_KEY = 'impersio_local_conversations';
 const MESSAGES_PREFIX = 'impersio_local_msgs_';
+const COLLECTIONS_KEY = 'impersio_local_collections';
 
-export const createConversation = async (title: string, userId?: string): Promise<string | null> => {
+export const createConversation = async (title: string, snippet?: string): Promise<string | null> => {
   try {
     const id = crypto.randomUUID();
     const newConv: SavedConversation = {
       id,
       title,
+      snippet,
       created_at: new Date().toISOString()
     };
 
@@ -28,6 +24,37 @@ export const createConversation = async (title: string, userId?: string): Promis
   } catch (e) {
     console.error('Error creating conversation:', e);
     return null;
+  }
+};
+
+export const deleteConversation = async (id: string) => {
+  const existing = localStorage.getItem(CONVERSATIONS_KEY);
+  if (!existing) return;
+  const conversations = JSON.parse(existing);
+  const filtered = conversations.filter((c: any) => c.id !== id);
+  localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(filtered));
+  localStorage.removeItem(`${MESSAGES_PREFIX}${id}`);
+};
+
+export const updateConversationSnippet = async (id: string, snippet: string) => {
+  const existing = localStorage.getItem(CONVERSATIONS_KEY);
+  if (!existing) return;
+  const conversations = JSON.parse(existing);
+  const index = conversations.findIndex((c: any) => c.id === id);
+  if (index !== -1) {
+    conversations[index].snippet = snippet;
+    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
+  }
+};
+
+export const moveConversationToCollection = async (threadId: string, collectionId: string | null) => {
+  const existing = localStorage.getItem(CONVERSATIONS_KEY);
+  if (!existing) return;
+  const conversations = JSON.parse(existing);
+  const index = conversations.findIndex((c: any) => c.id === threadId);
+  if (index !== -1) {
+    conversations[index].collection_id = collectionId;
+    localStorage.setItem(CONVERSATIONS_KEY, JSON.stringify(conversations));
   }
 };
 
@@ -59,13 +86,17 @@ export const saveMessage = async (
 
     messages.push(newMessage);
     localStorage.setItem(key, JSON.stringify(messages));
+    
+    // Auto-update snippet if this is the first assistant response
+    if (role === 'assistant') {
+      updateConversationSnippet(conversationId, content.substring(0, 150));
+    }
   } catch (e) {
     console.error('Error saving message:', e);
   }
 };
 
 export const getUserConversations = async (userId: string): Promise<SavedConversation[]> => {
-    // In local mode, we ignore userId and return all local conversations
     const existing = localStorage.getItem(CONVERSATIONS_KEY);
     return existing ? JSON.parse(existing) : [];
 };
@@ -83,4 +114,39 @@ export const getConversationMessages = async (conversationId: string): Promise<M
       widget: msg.widget,
       relatedQuestions: msg.related_questions
   }));
+};
+
+// Collections API
+export const getCollections = async (): Promise<Collection[]> => {
+  const existing = localStorage.getItem(COLLECTIONS_KEY);
+  return existing ? JSON.parse(existing) : [];
+};
+
+export const createCollection = async (title: string, description: string, icon: string): Promise<Collection> => {
+  const id = crypto.randomUUID();
+  const newCol: Collection = {
+    id,
+    title,
+    description,
+    icon,
+    created_at: new Date().toISOString()
+  };
+  const existing = await getCollections();
+  existing.unshift(newCol);
+  localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(existing));
+  return newCol;
+};
+
+export const deleteCollection = async (id: string) => {
+  const existing = await getCollections();
+  const filtered = existing.filter(c => c.id !== id);
+  localStorage.setItem(COLLECTIONS_KEY, JSON.stringify(filtered));
+  
+  // Also detach threads
+  const threads = await getUserConversations('guest');
+  threads.forEach(t => {
+    if (t.collection_id === id) {
+      moveConversationToCollection(t.id, null);
+    }
+  });
 };

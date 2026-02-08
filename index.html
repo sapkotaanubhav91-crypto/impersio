@@ -4,35 +4,14 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
-    <title>Scira - AI Search Engine</title>
-    <meta name="description" content="Scira is a minimalistic AI-powered search engine that provides accurate, trusted, and real-time answers." />
-    <meta property="og:title" content="Scira - AI Search Engine" />
-    <meta property="og:description" content="Scira is a minimalistic AI-powered search engine that provides accurate, trusted, and real-time answers." />
-    <meta property="og:type" content="website" />
-    <meta name="theme-color" content="#FAF8F5" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)" />
+    <title>Impersio</title>
+    <meta name="description" content="Where knowledge begins." />
     
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%2321808D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Crect x='4' y='4' width='9' height='16' rx='4.5' /%3E%3Crect x='11' y='4' width='9' height='16' rx='4.5' /%3E%3Ccircle cx='8.5' cy='8.5' r='2' fill='%2321808D' stroke='none' /%3E%3C/svg%3E">
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg viewBox='0 0 24 24' fill='none' stroke='%2321808D' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 2L2 7l10 5 10-5-10-5z'/%3E%3Cpath d='M2 17l10 5 10-5'/%3E%3Cpath d='M2 12l10 5 10-5'/%3E%3C/svg%3E">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&display=swap" rel="stylesheet">
-    
-    <!-- Structured Data for Google Search -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "WebSite",
-      "name": "Scira",
-      "url": "https://scira.ai",
-      "description": "Scira is a minimalistic AI-powered search engine.",
-      "potentialAction": {
-        "@type": "SearchAction",
-        "target": "https://scira.ai/?q={search_term_string}",
-        "query-input": "required name=search_term_string"
-      }
-    }
-    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <script>
       tailwind.config = {
@@ -40,10 +19,7 @@
         theme: {
           extend: {
             fontFamily: {
-              // Mapping both sans and serif to Schibsted Grotesk to match Perplexity's all-grotesk branding
-              sans: ['"Schibsted Grotesk"', 'system-ui', 'sans-serif'],
-              serif: ['"Schibsted Grotesk"', 'sans-serif'], 
-              mono: ['ui-monospace', 'SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", 'monospace'],
+              sans: ['"Plus Jakarta Sans"', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
             },
             colors: {
               background: 'var(--bg-primary)', 
@@ -53,34 +29,22 @@
               border: 'var(--border)',     
               primary: 'var(--text-primary)',    
               muted: 'var(--text-secondary)',      
-              'bubble-user': 'var(--bubble-user)',
-              'scira-accent': 'var(--accent-primary)', 
-              'scira-accent-hover': 'var(--accent-hover)',
-              'sidebar-background': 'var(--sidebar-background)',
-              'sidebar-foreground': 'var(--sidebar-foreground)',
-              'sidebar-primary': 'var(--sidebar-primary)',
-              'sidebar-primary-foreground': 'var(--sidebar-primary-foreground)',
-              'sidebar-accent': 'var(--sidebar-accent)',
-              'sidebar-accent-foreground': 'var(--sidebar-accent-foreground)',
-              'sidebar-border': 'var(--sidebar-border)',
-              'sidebar-ring': 'var(--sidebar-ring)',
+              'scira-accent': '#21808D', 
+              'scira-accent-hover': '#186A76',
             },
             animation: {
+              'spin-slow': 'spin 3s linear infinite',
               'fade-in': 'fadeIn 0.3s ease-out',
-              'slide-up': 'slideUp 0.4s ease-out',
             },
             keyframes: {
               fadeIn: {
-                '0%': { opacity: '0' },
-                '100%': { opacity: '1' },
-              },
-              slideUp: {
-                '0%': { transform: 'translateY(10px)', opacity: '0' },
-                '100%': { transform: 'translateY(0)', opacity: '1' },
+                '0%': { opacity: '0', transform: 'translateY(4px)' },
+                '100%': { opacity: '1', transform: 'translateY(0)' },
               }
             },
             boxShadow: {
-              'elegant': '0 2px 10px rgba(0, 0, 0, 0.03)',
+              'elegant': '0 2px 8px rgba(0,0,0,0.04), 0 0 1px rgba(0,0,0,0.1)',
+              'glow': '0 0 20px rgba(33, 128, 141, 0.15)',
             }
           }
         }
@@ -88,119 +52,66 @@
     </script>
     <style>
       :root {
-        /* Light Mode: Warm Paper */
-        --bg-primary: #F9F9F5;      
-        --bg-secondary: #F0F0F0;    
+        --bg-primary: #f3f3ee;      
+        --bg-secondary: #f9fafb;    
         --surface: #FFFFFF;         
-        --surface-hover: #F2F0E9;
-        --text-primary: #1A1A1A;    
-        --text-secondary: #6E6E6E;  
-        --accent-primary: #1F8E98;  /* Perplexity Teal */
-        --accent-hover: #1A6A76;
-        --border: #E5E5E5;          
-        --bubble-user: #F0F0F0;
-        
-        /* Sidebar Variables */
-        --sidebar-background: #F9F9F5;
-        --sidebar-foreground: #6E6E6E;
-        --sidebar-primary: #1A1A1A;
-        --sidebar-primary-foreground: #FFFFFF;
-        --sidebar-accent: #E5E5E5;
-        --sidebar-accent-foreground: #1A1A1A;
-        --sidebar-border: #E5E5E5;
-        --sidebar-ring: #21808D;
+        --surface-hover: #f3f4f6;
+        --text-primary: #111111;    
+        --text-secondary: #6B7280;  
+        --border: #e5e7eb;          
       }
       
       .dark {
-        /* Dark Mode: Full Black & Deep Charcoal */
-        --bg-primary: #191919;      /* Perplexity Dark */
-        --bg-secondary: #121212;    /* Sidebar/Inputs */
-        --surface: #202020;         /* Cards */
+        --bg-primary: #191919;      
+        --bg-secondary: #000000;    
+        --surface: #202020;         
         --surface-hover: #2A2A2A;
-        --text-primary: #ECECEC;    
-        --text-secondary: #909090;  
-        --accent-primary: #21808D;  /* New Teal */
-        --accent-hover: #2999A8;
+        --text-primary: #E8E8E6;    
+        --text-secondary: #8E8E8E;  
         --border: #333333;
-        --bubble-user: #1A1A1A;     /* Specific dark bubble for user */
-        
-        /* Sidebar Variables Dark */
-        --sidebar-background: #191919;
-        --sidebar-foreground: #909090;
-        --sidebar-primary: #21808D;
-        --sidebar-primary-foreground: #FFFFFF;
-        --sidebar-accent: #1F1F1F;
-        --sidebar-accent-foreground: #ECECEC;
-        --sidebar-border: #262626;
-        --sidebar-ring: #21808D;
       }
 
       body {
         background-color: var(--bg-primary);
         color: var(--text-primary);
-        font-family: 'Schibsted Grotesk', sans-serif;
+        font-family: 'Plus Jakarta Sans', sans-serif !important;
         -webkit-font-smoothing: antialiased;
-        letter-spacing: -0.01em;
+        -moz-osx-font-smoothing: grayscale;
       }
 
-      /* Force standard font on controls */
-      button, input, textarea, select {
-        font-family: inherit;
-      }
-
+      /* Perplexity-like scrollbar */
       ::-webkit-scrollbar {
         width: 6px;
         height: 6px;
       }
       ::-webkit-scrollbar-track {
-        background: transparent; 
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: var(--border); 
         border-radius: 9999px;
       }
-      
-      /* Typography overrides for that editorial feel */
-      .markdown-body {
-        line-height: 1.7; 
-        font-size: 16px; 
-        color: var(--text-primary);
-        font-family: 'Schibsted Grotesk', sans-serif; 
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--text-secondary); 
       }
       
-      .markdown-body h1, .markdown-body h2, .markdown-body h3 {
-        font-family: 'Schibsted Grotesk', sans-serif;
-        font-weight: 500;
-        margin-top: 2rem;
-        margin-bottom: 1rem;
-        color: var(--text-primary);
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
       }
-      
-      .markdown-body p {
-        margin-bottom: 1.25rem;
-        font-size: 1.05rem;
-        line-height: 1.75;
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
       }
 
-      .markdown-body strong {
-        font-weight: 600;
-        color: var(--text-primary);
-      }
-
-      /* Specific adjustments for sans-serif UI elements */
-      .font-sans {
-        font-family: 'Schibsted Grotesk', sans-serif !important;
-      }
-      
-      /* Mapping serif classes to Grotesk to match Perplexity's FK Grotesk usage for headings */
-      .font-serif {
-        font-family: 'Schibsted Grotesk', sans-serif !important;
-      }
-      
-      /* Updated Selection Color to Teal */
+      /* Custom selection color */
       ::selection {
-        background: #21808D; 
-        color: white;
+        background: rgba(33, 128, 141, 0.2);
+        color: var(--text-primary);
+      }
+
+      textarea::placeholder {
+        color: #9CA3AF;
+        opacity: 0.7;
       }
     </style>
 <script type="importmap">
@@ -215,15 +126,14 @@
     "react-markdown": "https://esm.sh/react-markdown@^10.1.0",
     "remark-gfm": "https://esm.sh/remark-gfm@^4.0.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.37.0",
-    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1",
-    "recharts": "https://esm.sh/recharts@^2.12.0",
-    "pptxgenjs": "https://esm.sh/pptxgenjs@3.12.0",
     "clsx": "https://esm.sh/clsx@^2.1.1",
-    "tailwind-merge": "https://esm.sh/tailwind-merge@^2.3.0"
+    "tailwind-merge": "https://esm.sh/tailwind-merge@^2.3.0",
+    "recharts": "https://esm.sh/recharts@^3.7.0",
+    "pptxgenjs": "https://esm.sh/pptxgenjs@^4.0.1"
   }
 }
 </script>
-</head>
+  </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
