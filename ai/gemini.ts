@@ -124,36 +124,65 @@ export const streamResponse = async (
 
   const isResearch = contextResults.length > 0;
 
+  // --- Model Specific Routing ---
+  let effectiveModelId = modelName;
+  let systemInstruction = "";
+
+  // Impersio Sports: Routes to Kimi K2 with specialized prompts
+  if (modelName === 'impersio-sports') {
+      effectiveModelId = 'moonshotai/kimi-k2-instruct-0905';
+      
+      systemInstruction = `
+      System: You are Impersio Sports, an expert sports analyst AI powered by Exa and Kimi K2.
+      Current Date: ${now.toLocaleString()}
+      
+      MISSION: Provide the latest sports scores, detailed game analysis, player statistics, and injury updates based on the provided search results.
+      
+      TONE: Energetic, data-driven, precise, and authoritative.
+      
+      FORMAT:
+      - **Live/Recent Scores**: Always put the score line first in bold if applicable (e.g., **Lakers 112 - Warriors 104**).
+      - **Key Stats**: Use bullet points for key player stats.
+      - **Analysis**: Provide a brief tactical analysis or context.
+      - **Citations**: Strictly cite sources as [1], [2].
+      `;
+  } else {
+      // Default System Prompt
+      systemInstruction = `
+      System: You are Impersio, a high-intelligence AI search engine.
+      Current Date: ${now.toLocaleString()}
+      
+      ${isResearch ? `
+      TASK: Answer the user's question comprehensively (approx 350-400 words).
+      
+      CONTEXT:
+      ${ragContext}
+      
+      STRICT RESPONSE RULES:
+      1. **Trust Hierarchy**: 
+         - First, state the *Official* facts/specs from primary sources.
+         - Second, contrast this with *User Reviews/Consensus* (Reddit, Forums).
+         - Third, mention any recent *News/Updates*.
+      
+      2. **Format & Length**:
+         - **Executive Summary**: 3-4 sentences answering the core question directly.
+         - **Detailed Sections**: Use Markdown headers (###) to organize the deep dive.
+         - **Length**: The body must be detailed. Do not be brief. Explain the "Why" and "How".
+      
+      3. **Citations**: 
+         - Every single claim must be cited inline using [1], [2].
+         - Example: "The device features a 50MP sensor [1], though users report low-light issues [3]."
+      
+      4. **Tone**: Objective, journalistic, and dense with information.
+      ` : `
+      TASK: Answer the user's conversational query politely.
+      - Keep it under 3 sentences unless asked for more.
+      `}
+      `;
+  }
+
   const fullPrompt = `
-  System: You are Impersio, a high-intelligence AI search engine.
-  Current Date: ${now.toLocaleString()}
-  
-  ${isResearch ? `
-  TASK: Answer the user's question comprehensively (approx 350-400 words).
-  
-  CONTEXT:
-  ${ragContext}
-  
-  STRICT RESPONSE RULES:
-  1. **Trust Hierarchy**: 
-     - First, state the *Official* facts/specs from primary sources.
-     - Second, contrast this with *User Reviews/Consensus* (Reddit, Forums).
-     - Third, mention any recent *News/Updates*.
-  
-  2. **Format & Length**:
-     - **Executive Summary**: 3-4 sentences answering the core question directly.
-     - **Detailed Sections**: Use Markdown headers (###) to organize the deep dive.
-     - **Length**: The body must be detailed. Do not be brief. Explain the "Why" and "How".
-  
-  3. **Citations**: 
-     - Every single claim must be cited inline using [1], [2].
-     - Example: "The device features a 50MP sensor [1], though users report low-light issues [3]."
-  
-  4. **Tone**: Objective, journalistic, and dense with information.
-  ` : `
-  TASK: Answer the user's conversational query politely.
-  - Keep it under 3 sentences unless asked for more.
-  `}
+  ${systemInstruction}
 
   User Query: ${prompt}
   
@@ -169,7 +198,7 @@ export const streamResponse = async (
       await streamFn();
   };
   
-  // GROQ MODELS
+  // GROQ MODELS (Includes Kimi K2 and Impersio Sports)
   const groqModels = [
       'openai/gpt-oss-120b',
       'moonshotai/kimi-k2-instruct-0905',
@@ -177,10 +206,10 @@ export const streamResponse = async (
       'qwen/qwen3-32b'
   ];
 
-  if (groqModels.includes(modelName)) {
+  if (groqModels.includes(effectiveModelId)) {
       try {
           let fullText = "";
-          await streamGroq([{ role: 'user', content: fullPrompt }], modelName, (c) => {
+          await streamGroq([{ role: 'user', content: fullPrompt }], effectiveModelId, (c) => {
               fullText += c;
               const cleanContent = fullText.replace(/<think>[\s\S]*?<\/think>/, '').trimStart();
               // Parse reasoning if needed
@@ -196,10 +225,10 @@ export const streamResponse = async (
   }
 
   // OPENROUTER MODELS
-  if (modelName === 'tngtech/deepseek-r1t2-chimera:free') {
+  if (effectiveModelId === 'tngtech/deepseek-r1t2-chimera:free') {
       try {
           let fullRaw = "";
-          await streamOpenRouter([{ role: 'user', content: fullPrompt }], modelName, (c) => {
+          await streamOpenRouter([{ role: 'user', content: fullPrompt }], effectiveModelId, (c) => {
               fullRaw += c;
               // Simple extraction of content after </think> if present, or just content
               const parts = fullRaw.split('</think>');
@@ -217,7 +246,7 @@ export const streamResponse = async (
   }
 
   // FALLBACK (Pollinations)
-  if (modelName !== 'gemini-3-flash-preview' && !modelName.includes('gemini')) {
+  if (effectiveModelId !== 'gemini-3-flash-preview' && !effectiveModelId.includes('gemini')) {
       try {
           let txt = "";
           await streamPollinations([{ role: 'user', content: fullPrompt }], 'openai', (c) => {

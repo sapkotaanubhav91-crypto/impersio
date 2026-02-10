@@ -30,7 +30,7 @@ export const InputBar: React.FC<InputBarProps> = ({
       <div className={`w-full ${isInitial ? 'max-w-[700px]' : 'max-w-3xl'} mx-auto relative z-30 px-4`}>
         <div className={`
           relative flex flex-col w-full bg-white dark:bg-[#202020] border border-gray-200 dark:border-gray-700 transition-all duration-300
-          ${isInitial ? 'rounded-[24px] p-4 shadow-sm hover:border-gray-300 dark:hover:border-gray-600 hover:shadow-md' : 'rounded-full p-2 px-4 shadow-elegant mb-6'}
+          ${isInitial ? 'rounded-2xl p-3 pb-3 shadow-sm hover:border-gray-300 dark:hover:border-gray-600' : 'rounded-full p-2 px-4 shadow-elegant mb-6'}
         `}>
           {isInitial ? (
              <>
@@ -43,8 +43,8 @@ export const InputBar: React.FC<InputBarProps> = ({
                     e.target.style.height = e.target.scrollHeight + 'px';
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
-                  placeholder="Ask anything..."
-                  className="w-full bg-transparent text-primary placeholder:text-gray-400 font-normal focus:outline-none resize-none overflow-hidden text-lg mb-8 leading-relaxed ml-1 font-sans"
+                  placeholder="Ask anything. Type @ for sources and / for shortcuts."
+                  className="w-full bg-transparent text-primary placeholder:text-gray-400 font-normal focus:outline-none resize-none overflow-hidden text-lg mb-10 leading-relaxed ml-1 font-sans min-h-[40px]"
                   style={{ minHeight: '28px' }}
                   rows={1}
                   autoFocus
@@ -52,12 +52,12 @@ export const InputBar: React.FC<InputBarProps> = ({
                 
                 <div className="flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
-                     <button className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        <Plus className="w-5 h-5" />
+                     <button className="flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-primary border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <Plus className="w-4 h-4" />
                      </button>
                   </div>
                   
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                      {/* Model Selector */}
                     <div className="flex items-center gap-2">
                        <ModelSelector
@@ -67,18 +67,16 @@ export const InputBar: React.FC<InputBarProps> = ({
                             isOpen={isModelMenuOpen}
                             onToggle={() => setIsModelMenuOpen(!isModelMenuOpen)}
                             trigger={
-                                <button className="flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-primary transition-colors px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                                <button className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-primary transition-colors px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
                                     Model <ChevronDown className="w-3 h-3" />
                                 </button>
                             }
                         />
                     </div>
                     
-                    <div className="h-4 w-[1px] bg-gray-200 dark:bg-gray-700"></div>
-
                     {/* Mic */}
-                    <button className="p-1.5 rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        <Mic className="w-4 h-4" />
+                    <button className="p-2 rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                        <Mic className="w-5 h-5" />
                     </button>
 
                     {/* Submit Button */}
@@ -86,11 +84,11 @@ export const InputBar: React.FC<InputBarProps> = ({
                       onClick={() => handleSearch()}
                       disabled={!query.trim()}
                       className={`
-                        flex items-center justify-center rounded-full w-8 h-8 transition-all duration-200
-                        ${query.trim() ? 'bg-[#1c7483] hover:bg-[#165f6b] text-white shadow-md' : 'bg-[#e8e8e6] dark:bg-[#333] text-gray-400 cursor-not-allowed'}
+                        flex items-center justify-center rounded-full w-9 h-9 transition-all duration-200
+                        ${query.trim() ? 'bg-[#1c7483] hover:bg-[#165f6b] text-white shadow-md' : 'bg-[#1c7483] text-white'}
                       `}
                     >
-                      {query.trim() ? <ArrowRight className="w-4 h-4" /> : <SoundWaveIcon className="w-4 h-4" />}
+                      {query.trim() ? <ArrowRight className="w-5 h-5" /> : <SoundWaveIcon className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
