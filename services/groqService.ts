@@ -19,20 +19,21 @@ export const streamGroq = async (
   }
 
   // Configuration for specific models
+  // Fast response settings: Slightly higher temp for fluidity, ample tokens to prevent cut-off but not excessive.
   let temperature = 0.6;
   let max_tokens = 4096;
   let reasoning_effort: string | undefined = undefined;
 
   if (modelId === 'openai/gpt-oss-120b') {
-      temperature = 1;
-      max_tokens = 8192;
+      temperature = 0.8;
+      max_tokens = 4096;
       reasoning_effort = "medium"; // Enable reasoning for GPT OSS
   } else if (modelId === 'moonshotai/kimi-k2-instruct-0905') {
-      temperature = 0.6;
+      temperature = 0.6; // Balanced for structured, cited answers
       max_tokens = 4096;
   } else if (modelId === 'meta-llama/llama-4-scout-17b-16e-instruct') {
-      temperature = 1;
-      max_tokens = 1024;
+      temperature = 0.7; 
+      max_tokens = 4096; 
   } else if (modelId === 'qwen/qwen3-32b') {
       temperature = 0.7;
       max_tokens = 4096;

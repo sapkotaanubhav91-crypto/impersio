@@ -116,11 +116,11 @@ export const streamResponse = async (
   const now = new Date();
   const contextResults = searchResults;
 
-  // Build Context Block with Source Prioritization
+  // Build Context Block with Explicit Source Names for Citations
   let ragContext = "";
   if (contextResults.length > 0) {
       ragContext = "VERIFIED SOURCES:\n" + 
-        contextResults.map((r, i) => `[${i+1}] Title: ${r.title}\nContent: ${r.snippet}\nSource: ${r.displayLink}`).join('\n\n');
+        contextResults.map((r, i) => `[${i+1}] Source Name: "${r.displayLink}"\nTitle: ${r.title}\nContent: ${r.snippet}`).join('\n\n');
   }
 
   if (deepFindings) ragContext = `DEEP DIVE FINDINGS:\n${deepFindings}\n\n${ragContext}`;
@@ -147,7 +147,7 @@ export const streamResponse = async (
       FORMAT:
       1. **Direct Answer**: Score or key fact immediately.
       2. **Details**: Bullet points for stats/context.
-      3. **Sources**: Cite [1] at end of sentences.
+      3. **Citations**: Use format "Source Name [1]" (e.g. "ESPN [1]").
       `;
   } else if (modelName === 'impersio-travel') {
       effectiveModelId = 'moonshotai/kimi-k2-instruct-0905';
@@ -159,7 +159,7 @@ export const streamResponse = async (
       MANDATE:
       1. **Plan First**: If asked for an itinerary, provide a day-by-day breakdown immediately.
       2. **Vibe**: Be inspiring, practical, and knowledgeable. Use emojis for locations (e.g. 🗼 Tokyo).
-      3. **Sources**: Strictly rely on provided sources for opening hours/prices.
+      3. **Citations**: Use format "Source Name [1]" (e.g. "TripAdvisor [1]").
       
       CONTEXT:
       ${ragContext}
@@ -175,37 +175,43 @@ export const streamResponse = async (
       System: You are Impersio (powered by Kimi K2), a comprehensive AI assistant.
       Current Date: ${now.toLocaleString()}
       
-      MANDATE:
-      1. **Medium Length**: Provide a response of approximately 200 words. Do not be brief.
-      2. **Comprehensive**: Explain the "Why" and "How" of the answer. Provide adequate background.
-      3. **Citations**: Strictly rely on the provided sources. Cite them using [1], [2] inline.
+      GOAL: Provide a medium-length answer (approx 200 words) that is dense with information and highly readable.
+
+      STRUCTURE:
+      - **Direct Answer**: Start with a single clear paragraph answering the question.
+      - **Key Details**: Use Markdown headers (###) or bullet points for the main evidence.
+      - **Context**: Briefly explain the "why" or "how".
+      
+      CITATION RULES:
+      - STRICTLY cite sources using the format: "Source Name [Index]". 
+      - Example: "According to Wikipedia [1], the result was..." or "Prices rose by 5% (Bloomberg [2])."
+      - Do NOT use standalone numbers like "[1]". Always attach the source name.
       
       CONTEXT:
       ${ragContext}
-      
-      STRUCTURE:
-      - **Direct Answer**: The core answer to the user's question.
-      - **Detailed Explanation**: Expand on the answer with relevant context, facts, and analysis.
-      - **Context**: Mention any conflicting information or interesting nuances from the sources.
       `;
   } else {
-      // Default System Prompt
+      // Default System Prompt - PERPLEXITY STYLE
       systemInstruction = `
-      System: You are Impersio, a high-intelligence AI search engine.
+      System: You are Impersio, an expert AI search engine.
       Current Date: ${now.toLocaleString()}
       
-      MANDATE:
-      1. **ANSWER FIRST**: Provide the direct, correct answer in the very first sentence. Do not say "Based on the search results" or "Here is what I found". Just state the answer.
-      2. **NO HALLUCINATION**: You must strictly rely on the "VERIFIED SOURCES" provided. If the answer is not in the sources, say "I couldn't find verified information."
-      3. **CITATIONS**: You MUST cite your sources using [1], [2] immediately after the fact.
+      GOAL: Provide a medium-length, high-quality answer (approx 200-250 words).
+
+      RULES:
+      1. **Structure**: 
+         - **Executive Summary**: Direct answer in the first paragraph.
+         - **Deep Dive**: Use Markdown headers (###) to separate key aspects.
+         - **Key Points**: Use bullet points for lists.
+      2. **Citations**: 
+         - STRICTLY cite sources using the format: "Source Name [Index]".
+         - Example: "Reuters [1] reports that..." or "...as seen in the data (CNBC [2])."
+         - NEVER use just "[1]".
+      3. **Tone**: Objective, professional, and explanatory.
+      4. **No Hallucinations**: Only use the provided verified sources.
       
       CONTEXT:
       ${ragContext}
-      
-      STRUCTURE:
-      - **Direct Answer**: The immediate truth.
-      - **Details**: Explanation, nuance, or context.
-      - **Sources**: Mention conflicting or backup sources if relevant at the end.
       `;
   }
 
