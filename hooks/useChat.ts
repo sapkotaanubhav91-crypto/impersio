@@ -45,8 +45,8 @@ export const useChat = () => {
         return newMsgs;
       });
 
-      // Generate 3-4 parallel queries
-      const { queries, plan } = await generateSearchQueries(query);
+      // Skip query generation for speed
+      // const { queries, plan } = await generateSearchQueries(query);
 
       // 2. SEARCH EXECUTION
       setMessages(prev => {
@@ -54,20 +54,20 @@ export const useChat = () => {
         const last = newMsgs[newMsgs.length - 1];
         if (last && last.copilotEvents) {
              last.copilotEvents[0].status = 'completed';
-             last.copilotEvents[0].message = plan; 
+             last.copilotEvents[0].message = 'Fast Search'; 
              
              last.copilotEvents.push({ 
                 id: '2', 
                 status: 'loading', 
-                message: `Searching ${queries.length} sources...`, 
-                items: queries 
+                message: `Searching sources...`, 
+                items: [query] 
             });
         }
         return newMsgs;
       });
 
       // Execute Parallel Search Engine
-      const allResults = await performMultiSearch(queries);
+      const allResults = await performMultiSearch(query);
 
       // 3. RESULTS PROCESSING
       setMessages(prev => {

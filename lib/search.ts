@@ -100,28 +100,28 @@ const searchTavily = async (query: string, numResults: number = 8): Promise<Sear
 
 /**
  * ENGINE: Parallel Multi-Search (Scira Architecture)
- * 1. Takes distinct queries (Broad, Specific, News)
- * 2. Executes them in parallel against the best available provider
+ * 1. Takes a single query
+ * 2. Executes in parallel against Exa and Tavily (if keys exist)
  * 3. Deduplicates by URL and Domain
- * 4. Aggregates into a dense result set
+ * 4. Aggregates into a dense result set (max 10)
  */
-export const performMultiSearch = async (queries: string[]): Promise<SearchResult[]> => {
+export const performMultiSearch = async (query: string): Promise<SearchResult[]> => {
     const exaKey = getExaKey();
     const tavilyKey = getTavilyKey();
     
-    // Determine provider strategy: Prefer Exa, fall back to Tavily, or hybrid if needed
-    // For Scira clone: Exa is primary for semantic depth
-    const provider = exaKey ? 'exa' : (tavilyKey ? 'tavily' : 'none');
+    const promises: Promise<SearchResult[]>[] = [];
+
+    // Parallel Execution: 5 results from each provider
+    if (exaKey) {
+        promises.push(searchExa(query, 5)); 
+    }
+    if (tavilyKey) {
+        promises.push(searchTavily(query, 5));
+    }
     
-    if (provider === 'none') return [];
+    if (promises.length === 0) return [];
 
-    // Parallel Execution
-    const searchPromises = queries.map(query => {
-        if (provider === 'exa') return searchExa(query, 6); // 6 results per query
-        return searchTavily(query, 6);
-    });
-
-    const resultsArray = await Promise.all(searchPromises);
+    const resultsArray = await Promise.all(promises);
     const flatResults = resultsArray.flat();
 
     // Deduplication & Diversity Filtering
@@ -143,13 +143,13 @@ export const performMultiSearch = async (queries: string[]): Promise<SearchResul
         uniqueResults.push(res);
     }
 
-    // Limit total context to ~12 high quality results
-    return uniqueResults.slice(0, 12);
+    // Limit total context to 10 high quality results
+    return uniqueResults.slice(0, 10);
 };
 
 // Legacy single search export (mapped to multi-search engine)
 export const searchFast = async (query: string) => {
-    const results = await performMultiSearch([query]);
+    const results = await performMultiSearch(query);
     return { results };
 };
 
