@@ -108,6 +108,81 @@ const searchValyu = async (query: string): Promise<SearchResult[]> => {
 };
 
 /**
+ * STRATEGY: Valyu Deep Research (Long-running)
+ */
+export const searchValyuDeep = async (query: string): Promise<SearchResult[]> => {
+    const apiKey = getValyuKey();
+    if (!apiKey) return [];
+
+    try {
+        // 1. Create Task
+        const createResponse = await fetch("https://api.valyu.ai/v1/deepresearch", {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${apiKey}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                query: query,
+                mode: "standard"
+            })
+        });
+
+        if (!createResponse.ok) {
+            console.warn("Valyu Deep Research create failed");
+            return [];
+        }
+
+        const task = await createResponse.json();
+        const taskId = task.deepresearch_id;
+
+        // 2. Poll for Completion
+        const maxRetries = 60; // 5s * 60 = 5 minutes max
+        let attempts = 0;
+
+        while (attempts < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 5000)); // Wait 5s
+            attempts++;
+
+            const pollResponse = await fetch(`https://api.valyu.ai/v1/deepresearch/${taskId}`, {
+                headers: { "Authorization": `Bearer ${apiKey}` }
+            });
+
+            if (!pollResponse.ok) continue;
+            const result = await pollResponse.json();
+
+            if (result.status === 'completed') {
+                const sources: SearchResult[] = (result.sources || []).map((s: any) => ({
+                    title: s.title || "Deep Research Source",
+                    link: s.url,
+                    snippet: s.snippet || s.summary || "",
+                    displayLink: new URL(s.url).hostname,
+                    type: 'finance'
+                }));
+
+                if (result.output) {
+                    sources.unshift({
+                        title: "Deep Research Report",
+                        link: "#",
+                        snippet: result.output,
+                        displayLink: "Valyu AI",
+                        type: 'finance'
+                    });
+                }
+                return sources;
+            } else if (result.status === 'failed' || result.status === 'cancelled') {
+                return [];
+            }
+        }
+        
+        return [];
+    } catch (e) {
+        console.warn("Valyu Deep Research error", e);
+        return [];
+    }
+};
+
+/**
  * STRATEGY: Supermemory (Personal Knowledge Base)
  */
 const searchSupermemory = async (query: string): Promise<SearchResult[]> => {

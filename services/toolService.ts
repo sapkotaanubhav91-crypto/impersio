@@ -1,5 +1,5 @@
 import { SearchModeType, SearchResult } from '../types';
-import { performMultiSearch, searchWithProviders, searchYoutube, searchAcademic, searchGithub, searchMemory } from '../lib/search';
+import { performMultiSearch, searchWithProviders, searchYoutube, searchAcademic, searchGithub, searchMemory, searchValyuDeep } from '../lib/search';
 
 // --- Tool Interfaces ---
 export interface Tool {
@@ -88,8 +88,8 @@ export const searchForMode = async (mode: SearchModeType, query: string): Promis
       // Exa + Firecrawl
       return await searchWithProviders(`${query} site:.edu OR site:arxiv.org OR "research paper"`, ['exa', 'firecrawl']);
     case 'extreme': // Deep Research
-      // Valyu
-      return await searchWithProviders(query, ['valyu']);
+      // Valyu Deep Research
+      return await searchValyuDeep(query);
     case 'scraping':
       // Firecrawl
       return await searchWithProviders(query, ['firecrawl']);

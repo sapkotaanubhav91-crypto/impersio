@@ -204,7 +204,7 @@ export default function App() {
                       </div>
 
                       <div className="w-full max-w-2xl flex flex-col items-center -mt-20 animate-fade-in relative z-10">
-                           <div className="flex items-center gap-3 mb-10">
+                           <div className="flex items-center gap-3 mb-6">
                                <h1 className="text-6xl md:text-7xl font-medium tracking-tighter text-primary font-sans">
                                   Impersio
                                </h1>
@@ -214,6 +214,10 @@ export default function App() {
                                    </span>
                                )}
                            </div>
+                           
+                           <p className="text-muted text-lg mb-10 text-center max-w-xl font-light">
+                               An agentic search platform with Web, Academic, Deep Research, and Scraping modes.
+                           </p>
                            
                            <InputBar 
                                query={query} 

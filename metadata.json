@@ -1,6 +1,6 @@
 {
   "name": "Impersio",
-  "description": "Impersio is a minimalistic AI-powered search engine that understands your questions and finds the truth.",
+  "description": "An agentic search platform with Web, Academic, Deep Research, and Scraping modes, powered by Gemini, Exa, Firecrawl, and Valyu.",
   "requestFramePermissions": [
     "microphone"
   ]
