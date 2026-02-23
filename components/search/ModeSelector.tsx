@@ -16,6 +16,7 @@ interface ModeSelectorProps {
   onSelect: (mode: SearchModeType) => void;
   isOpen: boolean;
   onToggle: () => void;
+  trigger?: React.ReactNode;
 }
 
 const MODES: { id: SearchModeType; label: string; icon: React.ElementType; description: string }[] = [
@@ -26,18 +27,22 @@ const MODES: { id: SearchModeType; label: string; icon: React.ElementType; descr
   { id: 'scraping', label: 'Scraping', icon: ScanSearch, description: 'Firecrawl' },
 ];
 
-export const ModeSelector: React.FC<ModeSelectorProps> = ({ selectedMode, onSelect, isOpen, onToggle }) => {
+export const ModeSelector: React.FC<ModeSelectorProps> = ({ selectedMode, onSelect, isOpen, onToggle, trigger }) => {
   return (
     <div className="relative">
-      <button 
-        onClick={onToggle}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isOpen ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600' : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-gray-800'}`}
-      >
-        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
-            {MODES.find(m => m.id === selectedMode)?.label || 'Web'}
-        </span>
-        <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-      </button>
+      {trigger ? (
+        <div onClick={onToggle}>{trigger}</div>
+      ) : (
+        <button 
+            onClick={onToggle}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isOpen ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600' : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+        >
+            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                {MODES.find(m => m.id === selectedMode)?.label || 'Web'}
+            </span>
+            <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+      )}
 
       {isOpen && (
         <>

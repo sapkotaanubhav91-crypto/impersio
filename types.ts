@@ -15,6 +15,7 @@ export interface ModelOption {
   icon: React.ElementType;
   provider?: 'gemini' | 'groq' | 'openrouter';
   isReasoning?: boolean;
+  category?: 'Stable' | 'Experimental';
 }
 
 export interface SearchResult {

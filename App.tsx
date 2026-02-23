@@ -11,14 +11,15 @@ import {
   Pencil,
   Plus,
   Trophy,
-  Plane
+  Plane,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { authService } from './services/authService';
 import { User, ModelOption } from './types';
 import { Discover } from './components/Discover';
 import { Library } from './components/Library';
 import { AuthModal } from './components/AuthModal';
-import { AppSidebar } from './components/AppSidebar';
 import { useTheme } from './hooks/useTheme';
 import { getConversationMessages } from './services/chatStorageService';
 import { MetaIcon, GeminiIcon, ImpersioLogo } from './components/Icons';
@@ -32,15 +33,14 @@ import { PredictionPage } from './components/PredictionPage';
 
 // --- Available Models ---
 const MODELS: ModelOption[] = [
-    { id: 'impersio-sports', name: 'Impersio Sports', icon: Trophy, description: 'Live Scores & Analysis' },
-    { id: 'impersio-travel', name: 'Impersio Travel', icon: Plane, description: 'Travel Planner (Kimi K2)' },
-    { id: 'moonshotai/kimi-k2-instruct-0905', name: 'Kimi K2', icon: Zap, description: 'Advanced Logic' },
-    { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash', icon: GeminiIcon, description: 'Fast & Intelligent' },
-    { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro', icon: GeminiIcon, description: 'High Reasoning' },
-    { id: 'tngtech/deepseek-r1t2-chimera:free', name: 'DeepSeek R1t2', icon: BrainCircuit, description: 'Deep Thinking (New)', isReasoning: true },
-    { id: 'openai/gpt-oss-120b', name: 'GPT OSS 120b', icon: CircleDashed, description: 'Open Reasoning', isReasoning: true },
-    { id: 'meta-llama/llama-4-scout-17b-16e-instruct', name: 'Llama 4 Scout', icon: MetaIcon, description: 'Latest Architecture' },
-    { id: 'qwen/qwen3-32b', name: 'Qwen 3', icon: CodeIcon, description: 'Coding Expert' },
+    // Stable
+    { id: 'grok-2', name: 'Grok 2.0', icon: Zap, description: "xAI's Grok 2.0 model", category: 'Stable' },
+    { id: 'grok-2-vision', name: 'Grok 2.0 Vision', icon: Zap, description: "xAI's Grok 2.0 Vision model", category: 'Stable' },
+    { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', icon: BrainCircuit, description: "Anthropic's G.O.A.T. model", category: 'Stable' },
+    
+    // Experimental
+    { id: 'llama-3-3-70b', name: 'Llama 3.3 70B', icon: MetaIcon, description: "Meta's Llama model by Cerebras", category: 'Experimental' },
+    { id: 'deepseek-r1-distilled', name: 'DeepSeek R1 Distilled', icon: CodeIcon, description: "DeepSeek R1 model by Groq", category: 'Experimental' },
 ];
 
 export default function App() {
@@ -60,7 +60,7 @@ export default function App() {
   const [isProModalOpen, setIsProModalOpen] = useState(false);
   const [view, setView] = useState<'home' | 'discover' | 'library' | 'profile' | 'sports' | 'travel' | 'predict'>('home');
   const [user, setUser] = useState<User | null>(null);
-  const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[2]); // Default to Kimi K2
+  const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]); // Default to Grok 2.0
   const [selectedMode, setSelectedMode] = useState<SearchModeType>('web');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar toggle
@@ -100,41 +100,23 @@ export default function App() {
       setHasSearched(false); 
       setActiveConversationId(null); 
       setView('home'); 
-      setSelectedModel(MODELS[2]);
+      setSelectedModel(MODELS[0]);
       setSelectedMode('web');
       setChatTitle('New Chat');
   };
 
   return (
-    <div className="flex h-screen w-full bg-background text-primary font-sans selection:bg-[#1c7483]/20 overflow-hidden">
-      {/* Sidebar - Hidden on mobile unless toggled */}
-      <div className={`${isSidebarOpen ? 'block fixed inset-y-0 left-0 z-50' : 'hidden'} md:block md:relative h-full`}>
-          <AppSidebar 
-            currentView={view} 
-            onNavigate={(v) => { setView(v); setIsSidebarOpen(false); }} 
-            onNewChat={() => { handleNewChat(); setIsSidebarOpen(false); }}
-            onSignIn={() => setIsAuthModalOpen(true)}
-            user={user}
-          />
-          {/* Mobile Overlay */}
-          {isSidebarOpen && (
-              <div className="fixed inset-0 bg-black/50 z-[-1] md:hidden" onClick={() => setIsSidebarOpen(false)} />
-          )}
-      </div>
-      
+    <div className="flex h-screen w-full bg-white text-primary font-sans selection:bg-[#1c7483]/20 overflow-hidden">
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
       <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
       
-      <main className="flex-1 flex flex-col min-w-0 relative h-full bg-background transition-all duration-300">
+      <main className="flex-1 flex flex-col min-w-0 relative h-full bg-white transition-all duration-300">
            
            {/* Header - Only visible when searched or in specific views, NOT in sports/travel view */}
            {hasSearched && view === 'home' && (
                <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-b border-transparent">
                    <div className="flex items-center justify-between px-4 py-2 h-14">
                        <div className="flex items-center gap-3 min-w-0 flex-1">
-                           <button onClick={() => setIsSidebarOpen(true)} className="md:hidden p-2 text-muted hover:text-primary">
-                               <Menu className="w-5 h-5" />
-                           </button>
                            
                            {/* User Avatar (Mobile/Desktop) */}
                            {user ? (
@@ -189,12 +171,6 @@ export default function App() {
               <div className="flex-1 flex flex-col h-full relative overflow-hidden">
                 {!hasSearched ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[500px]">
-                      {/* Mobile Menu Trigger for Empty State */}
-                      <div className="md:hidden absolute top-4 left-4 z-10">
-                        <button onClick={() => setIsSidebarOpen(true)} className="p-2 text-muted hover:text-primary">
-                             <Menu className="w-6 h-6" />
-                        </button>
-                      </div>
 
                       {/* New Chat Button Mobile */}
                       <div className="md:hidden absolute top-4 right-4 z-10">
@@ -203,21 +179,10 @@ export default function App() {
                           </button>
                       </div>
 
-                      <div className="w-full max-w-2xl flex flex-col items-center -mt-20 animate-fade-in relative z-10">
-                           <div className="flex items-center gap-3 mb-6">
-                               <h1 className="text-6xl md:text-7xl font-medium tracking-tighter text-primary font-sans">
-                                  Impersio
-                               </h1>
-                               {user?.is_pro && (
-                                   <span className="px-2 py-0.5 rounded-lg bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 text-indigo-500 text-xs font-bold uppercase tracking-wider mt-2">
-                                       PRO
-                                   </span>
-                               )}
-                           </div>
-                           
-                           <p className="text-muted text-lg mb-10 text-center max-w-xl font-light">
-                               An agentic search platform with Web, Academic, Deep Research, and Scraping modes.
-                           </p>
+                       <div className="w-full max-w-2xl flex flex-col items-center -mt-20 animate-fade-in relative z-10">
+                           <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-primary font-sans mb-8 text-center">
+                              What do you want to explore?
+                           </h1>
                            
                            <InputBar 
                                query={query} 
@@ -230,6 +195,17 @@ export default function App() {
                                selectedMode={selectedMode}
                                setSelectedMode={setSelectedMode}
                            />
+
+                           <div className="flex items-center gap-4 mt-8">
+                               <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-sm text-gray-500 font-medium">
+                                   <Clock className="w-4 h4" />
+                                   <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                               </div>
+                               <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-sm text-gray-500 font-medium">
+                                   <Calendar className="w-4 h-4" />
+                                   <span>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                               </div>
+                           </div>
                       </div>
                   </div>
                 ) : (

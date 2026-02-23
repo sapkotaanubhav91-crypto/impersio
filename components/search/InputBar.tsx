@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Plus, Mic, ArrowRight, ChevronDown, ArrowUp } from 'lucide-react';
+import { Plus, Mic, ArrowRight, ChevronDown, ArrowUp, Globe, Mountain, Sparkles, Keyboard, Calculator, Code, MessageSquare, Book, Youtube } from 'lucide-react';
 import { ModelSelector } from '../ModelSelector';
 import { ModeSelector } from './ModeSelector';
 import { ModelOption, SearchModeType } from '../../types';
@@ -33,10 +33,10 @@ export const InputBar: React.FC<InputBarProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   return (
-      <div className={`w-full ${isInitial ? 'max-w-[760px]' : 'max-w-3xl'} mx-auto relative z-30 px-4`}>
+      <div className={`w-full ${isInitial ? 'max-w-[700px]' : 'max-w-3xl'} mx-auto relative z-30 px-4`}>
         <div className={`
-          relative flex flex-col w-full bg-white dark:bg-[#202020] border border-gray-200 dark:border-gray-700 transition-all duration-300
-          ${isInitial ? 'rounded-2xl p-4 shadow-sm hover:border-gray-300 dark:hover:border-gray-600' : 'rounded-full p-2 px-4 shadow-elegant mb-6'}
+          relative flex flex-col w-full bg-[#f4f4f5] dark:bg-[#202020] transition-all duration-300
+          ${isInitial ? 'rounded-xl p-4 shadow-sm border border-gray-300 dark:border-gray-700' : 'rounded-full p-2 px-4 shadow-elegant mb-6 border border-transparent'}
         `}>
           {isInitial ? (
              <>
@@ -49,57 +49,76 @@ export const InputBar: React.FC<InputBarProps> = ({
                     e.target.style.height = e.target.scrollHeight + 'px';
                   }}
                   onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
-                  placeholder="Ask anything. Type @ for sources and / for shortcuts."
-                  className="w-full bg-transparent text-primary placeholder:text-gray-400 font-normal focus:outline-none resize-none overflow-hidden text-lg mb-10 leading-relaxed ml-1 font-sans min-h-[44px]"
-                  style={{ minHeight: '32px' }}
+                  placeholder="Ask a question..."
+                  className="w-full bg-transparent text-primary placeholder:text-gray-500 font-normal focus:outline-none resize-none overflow-hidden text-lg mb-4 leading-relaxed ml-1 font-sans min-h-[28px]"
+                  style={{ minHeight: '28px' }}
                   rows={1}
                   autoFocus
                 />
                 
                 <div className="flex items-center justify-between mt-auto">
                   <div className="flex items-center gap-2">
+                     {/* Web/Mode Toggle */}
                      <ModeSelector 
                         selectedMode={selectedMode} 
-                        onSelect={setSelectedMode} 
+                        onSelect={(m) => { setSelectedMode(m); setIsModeMenuOpen(false); }} 
                         isOpen={isModeMenuOpen} 
-                        onToggle={() => setIsModeMenuOpen(!isModeMenuOpen)} 
+                        onToggle={() => setIsModeMenuOpen(!isModeMenuOpen)}
+                        trigger={
+                            <button 
+                                className={`flex items-center justify-center w-8 h-8 rounded-full transition-colors ${selectedMode === 'web' ? 'bg-[#52525b] text-white' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700'}`}
+                            >
+                                <Globe className="w-4 h-4" />
+                            </button>
+                        }
                      />
+
+                     {/* Extra Icons (Visual Only) */}
+                     <div className="hidden sm:flex items-center gap-1 mr-2">
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-200/50"><Keyboard className="w-4 h-4" /></button>
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-200/50"><Calculator className="w-4 h-4" /></button>
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-200/50"><Code className="w-4 h-4" /></button>
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-200/50"><MessageSquare className="w-4 h-4" /></button>
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-200/50"><Book className="w-4 h-4" /></button>
+                        <button className="p-1.5 text-gray-400 hover:text-gray-600 transition-colors rounded-md hover:bg-gray-200/50"><Youtube className="w-4 h-4" /></button>
+                     </div>
+
+                     {/* Model Selector Pill */}
+                     <ModelSelector
+                        selectedModel={selectedModel}
+                        models={models}
+                        onSelect={setSelectedModel}
+                        isOpen={isModelMenuOpen}
+                        onToggle={() => setIsModelMenuOpen(!isModelMenuOpen)}
+                        trigger={
+                            <button className="flex items-center gap-2 px-3 py-1.5 bg-[#404040] text-white rounded-full text-xs font-medium hover:bg-black transition-colors">
+                                <Sparkles className="w-3 h-3" />
+                                {selectedModel.name}
+                            </button>
+                        }
+                    />
+
+                     {/* Extreme Mode Toggle */}
+                     <button 
+                        onClick={() => setSelectedMode(selectedMode === 'extreme' ? 'web' : 'extreme')}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors border ${selectedMode === 'extreme' ? 'bg-white border-gray-200 text-black shadow-sm' : 'bg-white border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                     >
+                         <Mountain className="w-3 h-3" />
+                         Extreme
+                     </button>
                   </div>
                   
-                  <div className="flex items-center gap-2">
-                     {/* Model Selector */}
-                    <div className="flex items-center gap-2">
-                       <ModelSelector
-                            selectedModel={selectedModel}
-                            models={models}
-                            onSelect={setSelectedModel}
-                            isOpen={isModelMenuOpen}
-                            onToggle={() => setIsModelMenuOpen(!isModelMenuOpen)}
-                            trigger={
-                                <button className="flex items-center gap-1 text-sm font-medium text-gray-500 hover:text-primary transition-colors px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
-                                    Model <ChevronDown className="w-3 h-3" />
-                                </button>
-                            }
-                        />
-                    </div>
-                    
-                    {/* Mic */}
-                    <button className="p-2 rounded-full text-gray-400 hover:text-primary hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-                        <Mic className="w-5 h-5" />
-                    </button>
-
-                    {/* Submit Button */}
-                    <button 
-                      onClick={() => handleSearch()}
-                      disabled={!query.trim()}
-                      className={`
-                        flex items-center justify-center rounded-full w-9 h-9 transition-all duration-200
-                        ${query.trim() ? 'bg-[#1c7483] hover:bg-[#165f6b] text-white shadow-md' : 'bg-[#1c7483] text-white'}
-                      `}
-                    >
-                      {query.trim() ? <ArrowRight className="w-5 h-5" /> : <SoundWaveIcon className="w-5 h-5" />}
-                    </button>
-                  </div>
+                  {/* Submit Button */}
+                  <button 
+                    onClick={() => handleSearch()}
+                    disabled={!query.trim()}
+                    className={`
+                      flex items-center justify-center rounded-full w-8 h-8 transition-all duration-200
+                      ${query.trim() ? 'bg-[#404040] text-white hover:bg-black' : 'bg-gray-300 text-white'}
+                    `}
+                  >
+                    <ArrowUp className="w-4 h-4" />
+                  </button>
                 </div>
              </>
           ) : (
@@ -107,9 +126,14 @@ export const InputBar: React.FC<InputBarProps> = ({
                <div className="shrink-0">
                    <ModeSelector 
                         selectedMode={selectedMode} 
-                        onSelect={setSelectedMode} 
+                        onSelect={(m) => { setSelectedMode(m); setIsModeMenuOpen(false); }} 
                         isOpen={isModeMenuOpen} 
-                        onToggle={() => setIsModeMenuOpen(!isModeMenuOpen)} 
+                        onToggle={() => setIsModeMenuOpen(!isModeMenuOpen)}
+                        trigger={
+                            <button className="flex items-center justify-center w-8 h-8 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 hover:text-primary transition-colors">
+                                <Globe className="w-4 h-4" />
+                            </button>
+                        }
                    />
                </div>
                <input
@@ -137,7 +161,7 @@ export const InputBar: React.FC<InputBarProps> = ({
                   <button 
                     onClick={() => handleSearch()}
                     disabled={!query.trim()}
-                    className={`flex items-center justify-center rounded-full w-8 h-8 transition-all ${query.trim() ? 'bg-scira-accent text-white' : 'bg-border/30 text-muted'}`}
+                    className={`flex items-center justify-center rounded-full w-8 h-8 transition-all ${query.trim() ? 'bg-black text-white' : 'bg-gray-200 text-gray-400'}`}
                   >
                     <ArrowUp className="w-4 h-4" />
                   </button>
