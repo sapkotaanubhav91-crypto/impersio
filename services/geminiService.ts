@@ -274,10 +274,9 @@ export const streamResponse = async (
       await streamFn();
   };
   
-  // GROQ MODELS (Includes Kimi K2 and Impersio Sports/Travel)
+  // GROQ MODELS
   const groqModels = [
       'openai/gpt-oss-120b',
-      'moonshotai/kimi-k2-instruct-0905',
       'meta-llama/llama-4-scout-17b-16e-instruct',
       'qwen/qwen3-32b'
   ];
@@ -301,7 +300,12 @@ export const streamResponse = async (
   }
 
   // OPENROUTER MODELS
-  if (effectiveModelId === 'tngtech/deepseek-r1t2-chimera:free') {
+  const openRouterModels = [
+      'tngtech/deepseek-r1t2-chimera:free',
+      'moonshotai/kimi-k2-instruct-0905'
+  ];
+
+  if (openRouterModels.includes(effectiveModelId)) {
       try {
           let fullRaw = "";
           await streamOpenRouter([{ role: 'user', content: fullPrompt }], effectiveModelId, (c) => {
@@ -314,7 +318,10 @@ export const streamResponse = async (
                   onChunk(content.split('|||')[0], parts.length > 1 ? parts[0].replace('<think>', '') : undefined);
               }
           });
-          // Finalization logic...
+          
+          const parts = fullRaw.replace(/<think>[\s\S]*?<\/think>/, '').split('|||');
+          if (parts[1]) onRelated(parts[1].split('\n').filter(q => q.length > 5));
+          if (onComplete) onComplete(parts[0], undefined, []);
       } catch (e) {
           onChunk("Error connecting to OpenRouter.", undefined);
       }

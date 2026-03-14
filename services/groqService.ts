@@ -1,4 +1,6 @@
 
+import Groq from "groq-sdk";
+
 // Use environment variable for key, do not hardcode.
 const getGroqApiKey = () => {
     // Vite 'define' replaces this with the string value.
@@ -18,11 +20,13 @@ export const streamGroq = async (
     throw new Error("Groq API Key not configured. Please add GROQ_API_KEY to your env.");
   }
 
+  const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+
   // Configuration for specific models
   // Fast response settings: Slightly higher temp for fluidity, ample tokens to prevent cut-off but not excessive.
   let temperature = 0.6;
   let max_tokens = 4096;
-  let reasoning_effort: string | undefined = undefined;
+  let reasoning_effort: "low" | "medium" | "high" | undefined = undefined;
 
   if (modelId === 'openai/gpt-oss-120b') {
       temperature = 0.8;
@@ -39,68 +43,28 @@ export const streamGroq = async (
       max_tokens = 4096;
   }
 
-  const body: any = {
+  const params: any = {
     model: modelId,
     messages: messages,
     stream: true,
     temperature: temperature,
     max_completion_tokens: max_tokens,
-    top_p: 1
+    top_p: 1,
+    stop: null
   };
 
   // Only add reasoning_effort if the model supports it (like GPT OSS)
   if (reasoning_effort) {
-      body.reasoning_effort = reasoning_effort;
+      params.reasoning_effort = reasoning_effort;
   }
 
   try {
-    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(body)
-    });
+    const completion = await groq.chat.completions.create(params);
 
-    if (!response.ok) {
-        let errorText = "";
-        try {
-            errorText = await response.text();
-        } catch (e) {
-            errorText = response.statusText;
-        }
-        throw new Error(`Groq API Error: ${response.status} - ${errorText}`);
-    }
-
-    const reader = response.body?.getReader();
-    const decoder = new TextDecoder();
-    if (!reader) return;
-
-    let buffer = '';
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split('\n');
-      
-      buffer = lines.pop() || '';
-
-      for (const line of lines) {
-        if (line.trim() === '') continue;
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') return;
-          try {
-            const json = JSON.parse(data);
-            const content = json.choices[0]?.delta?.content || '';
-            if (content) onChunk(content);
-          } catch (e) {
-            // Ignore parsing errors for partial chunks
-          }
-        }
+    for await (const chunk of completion) {
+      const content = chunk.choices[0]?.delta?.content || "";
+      if (content) {
+        onChunk(content);
       }
     }
   } catch (error: any) {

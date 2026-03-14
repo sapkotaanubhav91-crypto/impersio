@@ -216,7 +216,7 @@ export const MessageContent = memo(({ content, isStreaming, sources = [] }: Mess
         components={{
             p: ({node, children, ...props}: any) => {
                 return (
-                    <p className="mb-5 text-[16px] md:text-[17px] leading-8 text-primary/90 font-sans tracking-wide" {...props}>
+                    <p className="mb-5 text-[16px] md:text-[17px] leading-8 text-primary/90 font-sans font-light tracking-wide" {...props}>
                        {React.Children.map(children, child => {
                            if (typeof child === 'string') return renderTextWithCitations(child);
                            return child;
@@ -227,7 +227,7 @@ export const MessageContent = memo(({ content, isStreaming, sources = [] }: Mess
             ul: ({node, ordered, ...props}: any) => <ul className="list-none space-y-2 mb-6" {...props} />,
             ol: ({node, ordered, ...props}: any) => <ol className="list-decimal list-outside space-y-2 mb-6 ml-4" {...props} />,
             li: ({node, ordered, children, ...props}: any) => (
-                <li className="text-[16px] md:text-[17px] leading-8 pl-4 font-sans text-primary/90 relative" {...props}>
+                <li className="text-[16px] md:text-[17px] leading-8 pl-4 font-sans font-light text-primary/90 relative" {...props}>
                    <span className="absolute left-0 top-[0.7em] w-1.5 h-1.5 bg-muted rounded-full opacity-60"></span>
                    {React.Children.map(children, child => {
                        if (typeof child === 'string') return renderTextWithCitations(child);

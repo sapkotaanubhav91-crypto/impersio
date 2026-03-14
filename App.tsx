@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from 'react';
 import { 
   BrainCircuit,
   Zap,
-  Sparkles,
   Code as CodeIcon,
   CircleDashed,
   Menu,
@@ -27,7 +26,9 @@ import { MetaIcon, GeminiIcon, ImpersioLogo } from './components/Icons';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { useChat } from './hooks/useChat';
 import { MessageItem } from './components/chat/MessageItem';
-import { InputBar } from './components/search/InputBar';
+import { ChatBoxInput } from './components/search/ChatBoxInput';
+import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
+import { AppSidebar } from './components/app-sidebar';
 import { Sports } from './components/Sports';
 import { Travel } from './components/Travel';
 import { PredictionPage } from './components/PredictionPage';
@@ -35,7 +36,7 @@ import { PredictionPage } from './components/PredictionPage';
 // --- Available Models ---
 const MODELS: ModelOption[] = [
     // Stable
-    { id: 'moonshotai/kimi-k2-instruct-0905', name: 'Kimi k2', icon: Sparkles, description: "Moonshot AI's Kimi k2 model", category: 'Stable' },
+    { id: 'moonshotai/kimi-k2-instruct-0905', name: 'Kimi k2', icon: Zap, description: "Moonshot AI's Kimi k2 model", category: 'Stable' },
     { id: 'grok-2', name: 'Grok 2.0', icon: Zap, description: "xAI's Grok 2.0 model", category: 'Stable' },
     { id: 'grok-2-vision', name: 'Grok 2.0 Vision', icon: Zap, description: "xAI's Grok 2.0 Vision model", category: 'Stable' },
     { id: 'claude-3-7-sonnet', name: 'Claude 3.7 Sonnet', icon: BrainCircuit, description: "Anthropic's G.O.A.T. model", category: 'Stable' },
@@ -65,7 +66,6 @@ export default function App() {
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]); // Default to Grok 2.0
   const [selectedMode, setSelectedMode] = useState<SearchModeType>('web');
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // Mobile sidebar toggle
 
   // Title state
   const [chatTitle, setChatTitle] = useState('New Chat');
@@ -108,30 +108,22 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-white text-primary font-sans selection:bg-[#1c7483]/20 overflow-hidden">
-      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
-      <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
-      
-      <main className="flex-1 flex flex-col min-w-0 relative h-full bg-white transition-all duration-300">
-           
-           {/* Header - Only visible when searched or in specific views, NOT in sports/travel view */}
-           {hasSearched && view === 'home' && (
-               <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-b border-transparent">
-                   <div className="flex items-center justify-between px-4 py-2 h-14">
-                       <div className="flex items-center gap-3 min-w-0 flex-1">
-                           
-                           {/* User Avatar (Mobile/Desktop) */}
-                           {user ? (
-                               <div className="flex items-center justify-center w-8 h-8 rounded-md bg-accent/50 text-xs font-medium text-primary border border-border">
-                                   {user.full_name?.[0] || user.email[0].toUpperCase()}
-                               </div>
-                           ) : (
-                               <div className="w-8 h-8 rounded-full bg-surface border border-border flex items-center justify-center">
-                                   <Zap className="w-4 h-4 text-muted" />
-                               </div>
-                           )}
+    <SidebarProvider>
+      <div className="flex h-screen w-full bg-background text-primary font-sans selection:bg-[#1c7483]/20 overflow-hidden">
+        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+        <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
+        
+        <AppSidebar />
 
-                           {/* Title Dropdown */}
+        <main className="flex-1 flex flex-col min-w-0 relative h-full bg-background transition-all duration-300">
+             
+             {/* Header - Only visible when searched or in specific views, NOT in sports/travel view */}
+             {hasSearched && view === 'home' && (
+                 <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-b border-transparent">
+                     <div className="flex items-center justify-between px-4 py-2 h-14">
+                         <div className="flex items-center gap-3 min-w-0 flex-1">
+                             <SidebarTrigger className="md:hidden -ml-2" />
+                             {/* Title Dropdown */}
                            <div className="relative">
                                <button 
                                 onClick={() => setIsTitleMenuOpen(!isTitleMenuOpen)}
@@ -175,6 +167,9 @@ export default function App() {
                   <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[500px]">
 
                       {/* New Chat Button Mobile */}
+                      <div className="md:hidden absolute top-4 left-4 z-10">
+                          <SidebarTrigger />
+                      </div>
                       <div className="md:hidden absolute top-4 right-4 z-10">
                           <button onClick={handleNewChat} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface hover:bg-surface-hover border border-border rounded-lg text-xs font-medium transition-all">
                               <Plus className="w-3.5 h-3.5" /> New
@@ -182,28 +177,26 @@ export default function App() {
                       </div>
 
                        <div className="w-full max-w-2xl flex flex-col items-center -mt-20 animate-fade-in relative z-10">
-                           <h1 className="text-4xl md:text-5xl font-medium tracking-tight text-primary font-sans mb-8 text-center">
-                              What do you want to explore?
-                           </h1>
+                           <div className="flex items-center gap-3 mb-8">
+                               <ImpersioLogo className="w-10 h-10 text-primary" />
+                               <h1 className="text-4xl font-normal tracking-tight text-primary font-sans">
+                                  perplexity
+                               </h1>
+                           </div>
                            
-                           <InputBar 
+                           <ChatBoxInput 
                                query={query} 
                                setQuery={setQuery} 
                                handleSearch={() => onSearch()} 
                                isInitial={true}
-                               selectedModel={selectedModel}
-                               setSelectedModel={setSelectedModel}
-                               models={MODELS}
-                               selectedMode={selectedMode}
-                               setSelectedMode={setSelectedMode}
                            />
 
                            <div className="flex items-center gap-4 mt-8">
-                               <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-sm text-gray-500 font-medium">
-                                   <Clock className="w-4 h4" />
+                               <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg shadow-sm text-sm text-muted font-medium">
+                                   <Clock className="w-4 h-4" />
                                    <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                                </div>
-                               <div className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg shadow-sm text-sm text-gray-500 font-medium">
+                               <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg shadow-sm text-sm text-muted font-medium">
                                    <Calendar className="w-4 h-4" />
                                    <span>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
                                </div>
@@ -229,16 +222,11 @@ export default function App() {
                     </div>
                     
                     <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pb-6 pt-10">
-                        <InputBar 
+                        <ChatBoxInput 
                             query={query} 
                             setQuery={setQuery} 
                             handleSearch={() => onSearch()} 
                             isInitial={false}
-                            selectedModel={selectedModel}
-                            setSelectedModel={setSelectedModel}
-                            models={MODELS}
-                            selectedMode={selectedMode}
-                            setSelectedMode={setSelectedMode}
                         />
                     </div>
                   </>
@@ -298,5 +286,6 @@ export default function App() {
            )}
       </main>
     </div>
+    </SidebarProvider>
   );
 }

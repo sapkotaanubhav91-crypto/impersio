@@ -153,7 +153,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                    <Check className="w-10 h-10 text-emerald-500" />
                 </div>
                 <h2 className="text-[32px] font-medium text-primary tracking-tight mb-2">All set!</h2>
-                <p className="text-[15px] text-muted mb-8 text-center max-w-sm">Your account has been successfully created. Welcome to Impersio.</p>
+                <p className="text-[15px] text-muted mb-8 text-center max-w-sm">Your account has been successfully created. Welcome to Perplexity.</p>
                 <button 
                   onClick={handleContinue}
                   className="px-8 py-3 bg-[#1c7483] text-white rounded-full font-bold shadow-lg shadow-[#1c7483]/20 hover:scale-105 transition-transform"

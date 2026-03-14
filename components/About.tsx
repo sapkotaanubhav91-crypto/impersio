@@ -20,7 +20,7 @@ export const About: React.FC<AboutProps> = ({ onBack }) => {
             <span className="font-medium">Back</span>
           </button>
           <div className="opacity-100 flex items-center gap-2">
-             <span className="text-2xl tracking-tight font-medium font-sans">Impersio</span>
+             <span className="text-2xl tracking-tight font-medium font-sans">Perplexity</span>
           </div>
         </div>
       </div>

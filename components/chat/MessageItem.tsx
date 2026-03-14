@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, RotateCcw, Copy, Check, Loader2, Search, Globe, CircleDashed, ArrowRight } from 'lucide-react';
+import { Share2, RotateCcw, Copy, Check, Loader2, Search, Globe, CircleDashed, ArrowRight, AlignLeft } from 'lucide-react';
 import { Message } from '../../types';
 import { Thinking } from '../Thinking';
 import { MessageContent } from '../MessageContent';
@@ -48,8 +48,8 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
         {/* Answer Section */}
         <div className="min-h-[20px] animate-in fade-in slide-in-from-bottom-3 duration-700">
            <div className="flex items-center gap-2 mb-3">
-              <ImpersioLogo className="w-5 h-5 text-scira-accent" />
-              <span className="text-sm font-medium text-primary">Impersio</span>
+              <AlignLeft className="w-5 h-5 text-gray-500" />
+              <span className="text-lg font-medium text-primary font-sans">Answer</span>
             </div>
           
           {/* Reasoning / Thinking Block */}
