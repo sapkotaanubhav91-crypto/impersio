@@ -277,6 +277,7 @@ export const streamResponse = async (
   // GROQ MODELS
   const groqModels = [
       'openai/gpt-oss-120b',
+      'moonshotai/kimi-k2-instruct-0905',
       'meta-llama/llama-4-scout-17b-16e-instruct',
       'qwen/qwen3-32b'
   ];
@@ -301,8 +302,7 @@ export const streamResponse = async (
 
   // OPENROUTER MODELS
   const openRouterModels = [
-      'tngtech/deepseek-r1t2-chimera:free',
-      'moonshotai/kimi-k2-instruct-0905'
+      'tngtech/deepseek-r1t2-chimera:free'
   ];
 
   if (openRouterModels.includes(effectiveModelId)) {
