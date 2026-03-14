@@ -252,8 +252,9 @@ export const streamResponse = async (
           const parts = fullText.replace(/<think>[\s\S]*?<\/think>/, '').split('|||');
           if (parts[1]) onRelated(parts[1].split('\n').filter(q => q.length > 5));
           if (onComplete) onComplete(parts[0], undefined, []);
-      } catch (e) {
-          onChunk("Error connecting to Groq model. Falling back...", undefined);
+      } catch (e: any) {
+          console.error("Groq Error:", e);
+          onChunk(`Error connecting to Groq model: ${e.message || "Unknown error"}`, undefined);
       }
       return;
   }

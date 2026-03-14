@@ -20,7 +20,11 @@ export const streamGroq = async (
     throw new Error("Groq API Key not configured. Please add GROQ_API_KEY to your env.");
   }
 
-  const groq = new Groq({ apiKey, dangerouslyAllowBrowser: true });
+  const groq = new Groq({ 
+    apiKey, 
+    baseURL: process.env.GROQ_BASE_URL || undefined,
+    dangerouslyAllowBrowser: true 
+  });
 
   // Configuration for specific models
   // Fast response settings: Slightly higher temp for fluidity, ample tokens to prevent cut-off but not excessive.

@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
       'process.env.OPENROUTER_API_KEY': JSON.stringify(env.OPENROUTER_API_KEY || env.VITE_OPENROUTER_API_KEY || ''),
       'process.env.CEREBRAS_API_KEY': JSON.stringify(env.CEREBRAS_API_KEY || env.VITE_CEREBRAS_API_KEY || ''),
       'process.env.GROQ_API_KEY': JSON.stringify(env.GROQ_API_KEY || env.VITE_GROQ_API_KEY || ''),
+      'process.env.GROQ_BASE_URL': JSON.stringify(env.GROQ_BASE_URL || env.VITE_GROQ_BASE_URL || ''),
       'process.env.FIRECRAWL_API_KEY': JSON.stringify(env.FIRECRAWL_API_KEY || env.VITE_FIRECRAWL_API_KEY || 'fc-6036ccf6936a4a45b5bb4b17f71f9147'),
       'process.env.SUPADATA_API_KEY': JSON.stringify(env.SUPADATA_API_KEY || env.VITE_SUPADATA_API_KEY || 'sd_576bf7d5603eab119c617735d5662202'),
       'process.env.VALYU_API_KEY': JSON.stringify(env.VALYU_API_KEY || env.VITE_VALYU_API_KEY || 'val_6cba2a39741d3f1014b49b941c883abc178c297532636a1340e03ee8af741fae'),
