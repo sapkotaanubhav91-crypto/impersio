@@ -107,13 +107,24 @@ export default function App() {
       setChatTitle('New Chat');
   };
 
+  useEffect(() => {
+      const handleKeyDown = (e: KeyboardEvent) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+              e.preventDefault();
+              handleNewChat();
+          }
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-background text-primary font-sans selection:bg-[#1c7483]/20 overflow-hidden">
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
         <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
         
-        <AppSidebar />
+        <AppSidebar onNewChat={handleNewChat} />
 
         <main className="flex-1 flex flex-col min-w-0 relative h-full bg-background transition-all duration-300">
              
