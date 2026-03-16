@@ -30,15 +30,7 @@ export const useUserSync = () => {
                 credits: 0, // Default credits
                 subscription_id: null, // Default subscription
               });
-            if (error) {
-              console.error('Error inserting user to Supabase:', error);
-              console.error('Details:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-              });
-            }
+            if (error) console.error('Error inserting user to Supabase:', error);
           } else {
             // Existing user: update only name/email
             const { error } = await supabase
@@ -48,15 +40,7 @@ export const useUserSync = () => {
                 name: fullName,
               })
               .eq('id', id);
-            if (error) {
-              console.error('Error updating user in Supabase:', error);
-              console.error('Details:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code
-              });
-            }
+            if (error) console.error('Error updating user in Supabase:', error);
           }
         } catch (err) {
           console.error('Unexpected error during user sync:', err);
