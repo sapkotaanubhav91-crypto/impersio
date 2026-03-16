@@ -210,13 +210,13 @@ export const MessageContent = memo(({ content, isStreaming, sources = [] }: Mess
   };
 
   return (
-    <div className="markdown-body text-primary font-serif font-normal w-full min-w-0">
+    <div className="markdown-body text-foreground font-serif font-normal w-full min-w-0">
       <ReactMarkdown 
         remarkPlugins={[remarkGfm]}
         components={{
             p: ({node, children, ...props}: any) => {
                 return (
-                    <p className="mb-5 text-[16px] md:text-[17px] leading-8 text-primary/90 font-serif font-light tracking-wide" {...props}>
+                    <p className="mb-5 text-[16px] md:text-[17px] leading-8 text-foreground font-serif font-light tracking-wide" {...props}>
                        {React.Children.map(children, child => {
                            if (typeof child === 'string') return renderTextWithCitations(child);
                            return child;
@@ -227,7 +227,7 @@ export const MessageContent = memo(({ content, isStreaming, sources = [] }: Mess
             ul: ({node, ordered, ...props}: any) => <ul className="list-none space-y-2 mb-6" {...props} />,
             ol: ({node, ordered, ...props}: any) => <ol className="list-decimal list-outside space-y-2 mb-6 ml-4" {...props} />,
             li: ({node, ordered, children, ...props}: any) => (
-                <li className="text-[16px] md:text-[17px] leading-8 pl-4 font-serif font-light text-primary/90 relative" {...props}>
+                <li className="text-[16px] md:text-[17px] leading-8 pl-4 font-serif font-light text-foreground relative" {...props}>
                    <span className="absolute left-0 top-[0.7em] w-1.5 h-1.5 bg-muted rounded-full opacity-60"></span>
                    {React.Children.map(children, child => {
                        if (typeof child === 'string') return renderTextWithCitations(child);
@@ -235,14 +235,14 @@ export const MessageContent = memo(({ content, isStreaming, sources = [] }: Mess
                    })}
                 </li>
             ),
-            h1: ({node, ...props}: any) => <h1 className="text-3xl font-serif font-medium text-primary mt-8 mb-4" {...props} />,
-            h2: ({node, ...props}: any) => <h2 className="text-2xl font-serif font-medium text-primary mt-8 mb-4" {...props} />,
-            h3: ({node, ...props}: any) => <h3 className="text-lg font-serif font-semibold text-primary mt-6 mb-3 flex items-center gap-2" {...props} />,
-            strong: ({node, ...props}: any) => <strong className="font-semibold text-primary" {...props} />,
+            h1: ({node, ...props}: any) => <h1 className="text-3xl font-serif font-medium text-foreground mt-8 mb-4" {...props} />,
+            h2: ({node, ...props}: any) => <h2 className="text-2xl font-serif font-medium text-foreground mt-8 mb-4" {...props} />,
+            h3: ({node, ...props}: any) => <h3 className="text-lg font-serif font-semibold text-foreground mt-6 mb-3 flex items-center gap-2" {...props} />,
+            strong: ({node, ...props}: any) => <strong className="font-semibold text-foreground" {...props} />,
             blockquote: ({node, ...props}: any) => <blockquote className="border-l-2 border-scira-accent pl-4 italic text-muted my-4 font-serif text-lg bg-surface/50 py-2 rounded-r-lg" {...props} />,
             code: ({node, inline, className, children, ...props}: any) => {
                 if (inline) {
-                    return <code className="bg-surface-hover text-primary px-1.5 py-0.5 rounded text-sm font-mono" {...props}>{children}</code>;
+                    return <code className="bg-surface-hover text-foreground px-1.5 py-0.5 rounded text-sm font-mono" {...props}>{children}</code>;
                 }
                 return (
                     <div className="bg-[#1E1E1E] rounded-xl p-4 my-4 overflow-x-auto border border-border/20 shadow-sm">

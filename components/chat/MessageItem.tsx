@@ -19,10 +19,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
   if (msg.role === 'user') {
     return (
       <div className="w-full max-w-3xl mx-auto pt-10 pb-6 px-4 animate-fade-in">
-         <h1 className="text-[32px] font-medium text-primary tracking-tight leading-tight font-sans">
-           {msg.content}
-         </h1>
-      </div>
+          <h1 className="text-[32px] font-medium text-foreground tracking-tight leading-tight font-sans">
+            {msg.content}
+          </h1>
+       </div>
     );
   }
 
@@ -49,7 +49,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
         <div className="min-h-[20px] animate-in fade-in slide-in-from-bottom-3 duration-700">
            <div className="flex items-center gap-2 mb-3">
               <AlignLeft className="w-5 h-5 text-gray-500" />
-              <span className="text-lg font-medium text-primary font-sans">Answer</span>
+              <span className="text-lg font-medium text-foreground font-sans">Answer</span>
             </div>
           
           {/* Reasoning / Thinking Block */}
@@ -90,7 +90,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
         {msg.relatedQuestions && msg.relatedQuestions.length > 0 && !isLoading && (
            <div className="animate-in fade-in slide-in-from-bottom-2 duration-700 pt-4 border-t border-border/50">
                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-sm font-medium text-primary flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground flex items-center gap-2">
                       <CircleDashed className="w-4 h-4" /> Related
                   </span>
                </div>
@@ -99,7 +99,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
                     <button 
                       key={i}
                       onClick={() => onRewrite(q)}
-                      className="w-full text-left py-2.5 px-4 rounded-lg bg-surface border border-border/50 hover:bg-surface-hover text-sm font-medium text-primary transition-all flex items-center justify-between group"
+                      className="w-full text-left py-2.5 px-4 rounded-lg bg-surface border border-border/50 hover:bg-surface-hover text-sm font-medium text-[#1c7483] transition-all flex items-center justify-between group"
                     >
                        <span>{q}</span>
                        <ArrowRight className="w-4 h-4 text-muted opacity-0 -translate-x-2 group-hover:translate-x-0 group-hover:opacity-100 transition-all" />

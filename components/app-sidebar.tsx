@@ -51,7 +51,7 @@ export function AppSidebar({ onNewChat }: { onNewChat?: () => void }) {
                 <div className="px-4">
                     <button 
                         onClick={() => onNewChat ? onNewChat() : window.location.href = '/'}
-                        className="w-full flex items-center justify-between px-4 py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors text-sm font-medium text-primary border border-transparent dark:border-black"
+                        className="w-full flex items-center justify-between px-4 py-2.5 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors text-sm font-medium text-foreground border border-transparent dark:border-black"
                     >
                         <span>New Thread</span>
                         <div className="flex items-center gap-1 px-2 py-1 bg-black/5 dark:bg-white/10 rounded-md text-[10px] font-medium text-muted">
@@ -78,7 +78,7 @@ export function AppSidebar({ onNewChat }: { onNewChat?: () => void }) {
                             <SignedOut>
                                 <SidebarMenuItem className="mt-2 px-4">
                                     <SignInButton mode="modal">
-                                        <Button className='w-full rounded-full text-white bg-[#1c7483] hover:bg-[#1c7483]/90 py-5 text-base'>Sign In</Button>
+                                        <Button className='w-full rounded-full text-white bg-foreground hover:bg-foreground/90 py-5 text-base'>Sign In</Button>
                                     </SignInButton>
                                 </SidebarMenuItem>
                             </SignedOut>
@@ -86,7 +86,7 @@ export function AppSidebar({ onNewChat }: { onNewChat?: () => void }) {
                             <SidebarMenuItem className="mt-2 px-4">
                                 <Button 
                                     onClick={() => alert("Clerk is not configured. Please add VITE_CLERK_PUBLISHABLE_KEY to your environment variables.")}
-                                    className='w-full rounded-full text-white bg-[#1c7483] hover:bg-[#1c7483]/90 py-5 text-base'
+                                    className='w-full rounded-full text-white bg-foreground hover:bg-foreground/90 py-5 text-base'
                                 >
                                     Sign In (Setup Required)
                                 </Button>
@@ -100,7 +100,7 @@ export function AppSidebar({ onNewChat }: { onNewChat?: () => void }) {
                     <div className='p-3'>
                         <h2 className='text-gray-500'> Try now </h2>
                         <p className='text-gray-400'> Upgrade for image upload , smarter ai, and more Deepresearch</p>
-                        <Button className='rounded-full text-white bg-[#1c7483]'>Learn More</Button>
+                        <Button className='rounded-full text-white bg-foreground hover:bg-foreground/90'>Learn More</Button>
                     </div>
                 </SignedOut>
                 <SignedIn>

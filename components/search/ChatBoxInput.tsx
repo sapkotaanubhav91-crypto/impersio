@@ -33,7 +33,7 @@ export const ChatBoxInput: React.FC<InputBarProps> = ({
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
                     placeholder={placeholder}
-                    className='w-full outline-none bg-transparent resize-none text-gray-600'
+                    className='w-full outline-none bg-transparent resize-none text-foreground'
                     rows={2}
                 />
                 <div className='flex justify-between items-center mt-2'>
@@ -41,10 +41,10 @@ export const ChatBoxInput: React.FC<InputBarProps> = ({
                     <div className='flex items-center gap-2'>
                         <Tabs defaultValue="Search">
                             <TabsList className="bg-gray-100 dark:bg-[#1c1c1c] p-1 rounded-xl">
-                                <TabsTrigger value="Search" className='text-[#1c7483] rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:shadow-sm dark:data-[state=active]:shadow-none'>
+                                <TabsTrigger value="Search" className='text-[#1c7483] data-[state=active]:text-[#1c7483] rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:shadow-sm dark:data-[state=active]:shadow-none'>
                                     <SearchCheck className="w-4 h-4 mr-2" /> Search
                                 </TabsTrigger>
-                                <TabsTrigger value="Research" className='text-[#1c7483] rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:shadow-sm dark:data-[state=active]:shadow-none'>
+                                <TabsTrigger value="Research" className='text-[#1c7483] data-[state=active]:text-[#1c7483] rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:shadow-sm dark:data-[state=active]:shadow-none'>
                                     <Atom className="w-4 h-4 mr-2" /> Research
                                 </TabsTrigger>
                             </TabsList>
@@ -52,11 +52,11 @@ export const ChatBoxInput: React.FC<InputBarProps> = ({
                     </div>
                     {/* Right Side: Icons and Action Button */}
                     <div className='flex gap-1 items-center'>
-                        <Button variant='ghost' className='text-gray-500 p-2'><Cpu className='h-5 w-5'/></Button>
-                        <Button variant='ghost' className='text-gray-500 p-2'><Globe className='h-5 w-5'/></Button>
-                        <Button variant='ghost' className='text-gray-500 p-2'><Paperclip className='h-5 w-5'/></Button>
-                        <Button variant='ghost' className='text-gray-500 p-2'><Mic className='h-5 w-5'/></Button>
-                        <Button onClick={() => handleSearch()} className="bg-[#1c7483] hover:bg-[#1c7483]/90 p-2 text-white rounded-xl" disabled={!query.trim()}>
+                        <Button variant='ghost' className='text-foreground p-2'><Cpu className='h-5 w-5'/></Button>
+                        <Button variant='ghost' className='text-foreground p-2'><Globe className='h-5 w-5'/></Button>
+                        <Button variant='ghost' className='text-foreground p-2'><Paperclip className='h-5 w-5'/></Button>
+                        <Button variant='ghost' className='text-foreground p-2'><Mic className='h-5 w-5'/></Button>
+                        <Button onClick={() => handleSearch()} className="bg-foreground hover:bg-foreground/90 p-2 text-background rounded-xl" disabled={!query.trim()}>
                             <ArrowUp className='h-5 w-5'/>
                         </Button>
                     </div>

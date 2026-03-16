@@ -37,7 +37,7 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ selectedMode, onSele
             onClick={onToggle}
             className={`flex items-center gap-2 px-3 py-1.5 rounded-full border transition-all ${isOpen ? 'bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-black' : 'bg-transparent border-transparent hover:bg-gray-100 dark:hover:bg-gray-800'}`}
         >
-            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">
+            <span className="text-sm font-medium text-foreground">
                 {MODES.find(m => m.id === selectedMode)?.label || 'Web'}
             </span>
             <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -63,10 +63,10 @@ export const ModeSelector: React.FC<ModeSelectorProps> = ({ selectedMode, onSele
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <span className={`text-sm font-medium ${isSelected ? 'text-primary' : 'text-gray-700 dark:text-gray-300'}`}>
+                        <span className={`text-sm font-medium ${isSelected ? 'text-[#1c7483]' : 'text-foreground'}`}>
                           {mode.label}
                         </span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-primary" />}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-[#1c7483]" />}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{mode.description}</p>
                     </div>

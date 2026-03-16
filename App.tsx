@@ -112,7 +112,7 @@ export default function App() {
 
   return (
     <SidebarProvider>
-      <div className="flex h-screen w-full bg-background text-primary font-sans selection:bg-[#1c7483]/20 overflow-hidden">
+      <div className="flex h-screen w-full bg-background text-foreground font-sans selection:bg-[#1c7483]/20 overflow-hidden">
         <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
         <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
         
@@ -124,10 +124,10 @@ export default function App() {
                   <SignedOut>
                     <div className="flex items-center gap-2">
                       <SignInButton mode="modal">
-                        <button className="px-4 py-2 bg-primary text-background rounded-full text-sm font-medium hover:opacity-90 transition-opacity">Sign In</button>
+                        <button className="px-4 py-2 bg-foreground text-background rounded-full text-sm font-medium hover:opacity-90 transition-opacity">Sign In</button>
                       </SignInButton>
                       <SignUpButton mode="modal">
-                        <button className="px-4 py-2 bg-surface border border-border rounded-full text-sm font-medium hover:bg-surface-hover transition-colors">Sign Up</button>
+                        <button className="px-4 py-2 bg-foreground text-background border border-border rounded-full text-sm font-medium hover:opacity-90 transition-opacity">Sign Up</button>
                       </SignUpButton>
                     </div>
                   </SignedOut>
@@ -157,10 +157,10 @@ export default function App() {
                                    <>
                                      <div className="fixed inset-0 z-40" onClick={() => setIsTitleMenuOpen(false)} />
                                      <div className="absolute top-full left-0 mt-1 w-48 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 bg-surface animate-in fade-in zoom-in-95 duration-100">
-                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-surface-hover text-left">
+                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-surface-hover text-left">
                                              <Pencil className="w-4 h-4" /> Edit title
                                          </button>
-                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-primary hover:bg-surface-hover text-left">
+                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-surface-hover text-left">
                                              <ShareIcon className="w-4 h-4" /> Share
                                          </button>
                                          <div className="h-px bg-border my-1" />
@@ -198,8 +198,8 @@ export default function App() {
 
                        <div className="w-full max-w-2xl flex flex-col items-center justify-center animate-fade-in relative z-10">
                            <div className="flex items-center gap-3 mb-8">
-                               <ImpersioLogo className="w-10 h-10 text-primary" />
-                               <h1 className="text-4xl font-normal tracking-tight text-primary font-sans">
+                               <ImpersioLogo className="w-10 h-10 text-foreground" />
+                               <h1 className="text-4xl font-normal tracking-tight text-foreground font-sans">
                                   perplexity
                                </h1>
                            </div>
@@ -210,17 +210,6 @@ export default function App() {
                                handleSearch={() => onSearch()} 
                                isInitial={true}
                            />
-
-                           <div className="flex items-center gap-4 mt-8">
-                               <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg shadow-sm text-sm text-muted font-medium">
-                                   <Clock className="w-4 h-4" />
-                                   <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                               </div>
-                               <div className="flex items-center gap-2 px-3 py-1.5 bg-surface border border-border rounded-lg shadow-sm text-sm text-muted font-medium">
-                                   <Calendar className="w-4 h-4" />
-                                   <span>{new Date().toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })}</span>
-                               </div>
-                           </div>
                       </div>
                   </div>
                 ) : (
@@ -280,7 +269,7 @@ export default function App() {
            {view === 'profile' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                  <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mb-8 border border-border shadow-sm">
-                    <ImpersioLogo className="w-10 h-10 text-scira-accent" />
+                    <ImpersioLogo className="w-10 h-10 text-foreground" />
                  </div>
                  <h2 className="text-2xl font-medium tracking-tight mb-2 font-sans">Your Profile</h2>
                  <p className="text-muted max-w-sm text-sm font-sans mb-8">Manage your account settings and subscription.</p>
@@ -288,19 +277,19 @@ export default function App() {
                      <div className="bg-surface border border-border rounded-xl p-6 w-full max-w-sm text-left">
                          <div className="mb-4">
                              <label className="text-xs font-bold uppercase text-muted tracking-wider">Email</label>
-                             <div className="text-primary font-medium">{user.email}</div>
+                             <div className="text-foreground font-medium">{user.email}</div>
                          </div>
                          <div className="mb-6">
                              <label className="text-xs font-bold uppercase text-muted tracking-wider">Plan</label>
                              <div className="flex items-center gap-2">
-                                 <span className="text-primary font-medium">{user.is_pro ? 'Pro' : 'Free'}</span>
-                                 {!user.is_pro && <button onClick={() => setIsProModalOpen(true)} className="text-xs text-scira-accent hover:underline">Upgrade</button>}
+                                 <span className="text-foreground font-medium">{user.is_pro ? 'Pro' : 'Free'}</span>
+                                 {!user.is_pro && <button onClick={() => setIsProModalOpen(true)} className="text-xs text-foreground hover:underline">Upgrade</button>}
                              </div>
                          </div>
                          <button onClick={() => { authService.signOut(); window.location.reload(); }} className="w-full py-2 bg-surface-hover hover:bg-border rounded-lg text-sm font-medium transition-colors">Sign Out</button>
                      </div>
                  ) : (
-                     <button onClick={() => setIsAuthModalOpen(true)} className="px-6 py-2 bg-primary text-background rounded-full font-medium">Sign In</button>
+                     <button onClick={() => setIsAuthModalOpen(true)} className="px-6 py-2 bg-foreground text-background rounded-full font-medium">Sign In</button>
                  )}
               </div>
            )}
