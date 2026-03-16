@@ -3,10 +3,25 @@ import { Message, SearchResult, WidgetData, SavedConversation, Collection } from
 import { db, auth } from '../src/services/firebase';
 import { collection, doc, setDoc, getDoc, getDocs, deleteDoc, query, where, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
 
+const waitForAuth = async () => {
+    return new Promise((resolve) => {
+        if (auth.currentUser) {
+            resolve(auth.currentUser);
+        } else {
+            const unsubscribe = auth.onAuthStateChanged((user) => {
+                if (user) {
+                    unsubscribe();
+                    resolve(user);
+                }
+            });
+        }
+    });
+};
+
 export const createConversation = async (title: string, snippet?: string, id?: string): Promise<string | null> => {
   try {
-    const userId = auth.currentUser?.uid;
-    if (!userId) return null;
+    const user = await waitForAuth() as any;
+    const userId = user.uid;
 
     const convRef = id ? doc(db, 'conversations', id) : doc(collection(db, 'conversations'));
     const newConv = {
@@ -45,6 +60,7 @@ export const saveMessage = async (
   }
 ) => {
   try {
+    await waitForAuth();
     const messagesRef = collection(db, 'conversations', conversationId, 'messages');
     await addDoc(messagesRef, {
         role,
@@ -73,6 +89,8 @@ export const getUserConversations = async (userId: string): Promise<SavedConvers
 
 export const getConversationMessages = async (conversationId: string): Promise<Message[]> => {
   try {
+    await waitForAuth();
+
     const q = query(collection(db, 'conversations', conversationId, 'messages'), orderBy('created_at', 'asc'));
     const querySnapshot = await getDocs(q);
     return querySnapshot.docs.map(doc => {

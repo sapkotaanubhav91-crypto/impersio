@@ -10,6 +10,7 @@ import { Library } from './components/Library';
 import { AuthModal } from './components/AuthModal';
 import { useTheme } from './hooks/useTheme';
 import { getConversationMessages, createConversation } from './services/chatStorageService';
+import { auth } from './src/services/firebase';
 import { MetaIcon, GeminiIcon, ImpersioLogo } from './components/Icons';
 import { SubscriptionModal } from './components/SubscriptionModal';
 import { useChat } from './hooks/useChat';
@@ -68,17 +69,31 @@ export default function App() {
   // Title state
   const [chatTitle, setChatTitle] = useState('My Chat');
   const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
+  const activeConversationIdRef = useRef(activeConversationId);
+
+  useEffect(() => {
+      activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
 
   useEffect(() => { setUser(authService.getCurrentUser()); }, []);
   
+  const pendingSearchIdRef = useRef<string | null>(null);
+
   useEffect(() => { 
     if (location.pathname.startsWith('/search/')) {
         setView('home');
         setHasSearched(true);
         const conversationId = location.pathname.split('/search/')[1];
-        if (conversationId) {
+        
+        if (conversationId === pendingSearchIdRef.current) {
+            pendingSearchIdRef.current = null;
+            return;
+        }
+
+        if (conversationId && conversationId !== activeConversationIdRef.current) {
             setActiveConversationId(conversationId);
             setIsMessagesLoading(true);
+            
             getConversationMessages(conversationId).then(msgs => {
                 console.log("Loaded messages:", msgs);
                 if (msgs.length > 0) {
@@ -113,14 +128,28 @@ export default function App() {
 
       let conversationId = activeConversationId;
 
-      // Save to library if user is logged in
-      const email = clerkUser?.primaryEmailAddress?.emailAddress;
-      if (email) {
-          const type = (selectedMode === 'extreme' || selectedMode === 'academic') ? 'research' : 'search';
-          const libid = await saveToLibrary(q, email, type);
-          if (libid) {
-              conversationId = libid;
+      // Save to library if user is logged in and it's a new conversation
+      if (!conversationId) {
+          const email = clerkUser?.primaryEmailAddress?.emailAddress;
+          if (email) {
+              const type = (selectedMode === 'extreme' || selectedMode === 'academic') ? 'research' : 'search';
+              const libid = await saveToLibrary(q, email, type);
+              if (libid) {
+                  conversationId = libid;
+              }
           }
+          
+          // Generate unique search ID and slug if not already set by library
+          if (!conversationId) {
+              const slug = q.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20);
+              const uniqueId = Math.random().toString(36).substring(2, 15);
+              conversationId = `${slug}-${uniqueId}`;
+          }
+          
+          pendingSearchIdRef.current = conversationId;
+          createConversation(q, q.substring(0, 150), conversationId).then(id => {
+              if (id) setActiveConversationId(id);
+          });
       }
 
       // If searching from specialized views, switch to home view to show chat results
@@ -128,21 +157,9 @@ export default function App() {
           setView('home');
       }
       
-      // Generate unique search ID and slug if not already set
-      if (!conversationId) {
-          const slug = q.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20);
-          const uniqueId = activeConversationId || Math.random().toString(36).substring(2, 15);
-          conversationId = `${slug}-${uniqueId}`;
-      }
-      
-      if (!activeConversationId) {
-          createConversation(q, q.substring(0, 150), conversationId).then(id => {
-              if (id) setActiveConversationId(id);
-          });
-      }
       navigate(`/search/${conversationId}`);
 
-      handleSearch(q, selectedModel.id, selectedMode);
+      handleSearch(q, selectedModel.id, selectedMode, conversationId);
       setQuery('');
   };
 

@@ -11,16 +11,18 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
-  const handleSearch = async (query: string, modelId: string, forcedMode?: SearchModeType) => {
+  const handleSearch = async (query: string, modelId: string, forcedMode?: SearchModeType, passedConversationId?: string) => {
     if (!query.trim() || isLoading) return;
     
     setIsLoading(true);
     if (!hasSearched) setHasSearched(true);
 
-    let currentId = activeConversationId;
+    let currentId = passedConversationId || activeConversationId;
     if (!currentId) {
        currentId = await createConversation(query);
        setActiveConversationId(currentId);
+    } else if (passedConversationId && !activeConversationId) {
+       setActiveConversationId(passedConversationId);
     }
 
     const userMsg: Message = { role: 'user', content: query, mode: forcedMode };
