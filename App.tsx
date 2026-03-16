@@ -100,15 +100,20 @@ export default function App() {
      }
   }, [hasSearched, messages]);
 
-  const onSearch = (overrideQuery?: string) => {
+  const onSearch = async (overrideQuery?: string) => {
       const q = overrideQuery || query;
       if (!q.trim()) return;
+
+      let conversationId = activeConversationId;
 
       // Save to library if user is logged in
       const email = clerkUser?.primaryEmailAddress?.emailAddress;
       if (email) {
           const type = (selectedMode === 'extreme' || selectedMode === 'academic') ? 'research' : 'search';
-          saveToLibrary(q, email, type);
+          const libid = await saveToLibrary(q, email, type);
+          if (libid) {
+              conversationId = libid;
+          }
       }
 
       // If searching from specialized views, switch to home view to show chat results
@@ -116,10 +121,12 @@ export default function App() {
           setView('home');
       }
       
-      // Generate unique search ID and slug
-      const slug = q.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20);
-      const uniqueId = activeConversationId || Math.random().toString(36).substring(2, 15);
-      const conversationId = `${slug}-${uniqueId}`;
+      // Generate unique search ID and slug if not already set
+      if (!conversationId) {
+          const slug = q.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 20);
+          const uniqueId = activeConversationId || Math.random().toString(36).substring(2, 15);
+          conversationId = `${slug}-${uniqueId}`;
+      }
       
       if (!activeConversationId) {
           createConversation(q, q.substring(0, 150), conversationId).then(id => {
