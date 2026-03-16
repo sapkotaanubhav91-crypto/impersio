@@ -1,6 +1,6 @@
 import { supabase } from './supabaseClient';
 
-export const saveToLibrary = async (searchInput: string, userEmail: string) => {
+export const saveToLibrary = async (searchInput: string, userEmail: string, type: 'search' | 'research' = 'search') => {
   if (!searchInput.trim() || !userEmail) return;
 
   try {
@@ -9,6 +9,7 @@ export const saveToLibrary = async (searchInput: string, userEmail: string) => {
       .insert({
         searchinput: searchInput,
         userEmail: userEmail,
+        type: type,
         created_at: new Date().toISOString(),
       });
 

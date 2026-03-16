@@ -160,6 +160,13 @@ export const Library: React.FC<LibraryProps> = ({ onSelectThread }) => {
                     <Clock className="w-3.5 h-3.5" />
                     {formatTime(item.created_at)}
                   </div>
+                  <span className={`px-3 py-1 text-[10px] font-bold rounded-full uppercase tracking-wider ${
+                    item.type === 'research' 
+                      ? 'bg-purple-500/10 text-purple-500' 
+                      : 'bg-blue-500/10 text-blue-500'
+                  }`}>
+                    {item.type || 'search'}
+                  </span>
                   <span className="px-3 py-1 bg-emerald-500/10 text-emerald-500 text-[10px] font-bold rounded-full uppercase tracking-wider">
                     Cloud Saved
                   </span>

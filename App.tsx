@@ -88,7 +88,8 @@ export default function App() {
       // Save to library if user is logged in
       const email = clerkUser?.primaryEmailAddress?.emailAddress;
       if (email) {
-          saveToLibrary(q, email);
+          const type = (selectedMode === 'extreme' || selectedMode === 'academic') ? 'research' : 'search';
+          saveToLibrary(q, email, type);
       }
 
       // If searching from specialized views, switch to home view to show chat results
