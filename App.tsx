@@ -1,12 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { BrainCircuit, Zap, Code as CodeIcon, CircleDashed, Menu, ChevronDown, Share as ShareIcon, Trash2, Pencil, Plus, Trophy, Plane, Clock, Calendar } from 'lucide-react';
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser } from '@clerk/clerk-react';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser, useClerk } from '@clerk/clerk-react';
 import { authService } from './services/authService';
 import { User, ModelOption, SearchModeType } from './types';
 import { saveToLibrary } from './services/libraryService';
 import { Discover } from './components/Discover';
 import { Library } from './components/Library';
-import { AuthModal } from './components/AuthModal';
 import { useTheme } from './hooks/useTheme';
 import { getConversationMessages } from './services/chatStorageService';
 import { MetaIcon, GeminiIcon, ImpersioLogo } from './components/Icons';
@@ -17,7 +16,11 @@ import { MessageItem } from './components/chat/MessageItem';
 import { ChatBoxInput } from './components/search/ChatBoxInput';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './components/app-sidebar';
-import { DomainSettings } from './components/DomainSettings';
+import { Sports } from './components/Sports';
+import { Travel } from './components/Travel';
+import { PredictionPage } from './components/PredictionPage';
+import Header from './components/Header';
+import DisplayResult from './components/DisplayResult';
 
 const HAS_CLERK_KEY = !!(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_ZnVubnktbW9ua2V5LTU5LmNsZXJrLmFjY291bnRzLmRldiQ');
 
@@ -38,6 +41,7 @@ export default function App() {
   useTheme();
   useUserSync();
   const { user: clerkUser } = useUser();
+  const { openSignIn } = useClerk();
   
   const { 
     messages, 
@@ -51,9 +55,22 @@ export default function App() {
   } = useChat();
   
   const [query, setQuery] = useState('');
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
-  const [view, setView] = useState<'home' | 'discover' | 'library' | 'profile' | 'domains'>('home');
+
+  // Prompt sign in on mount if not authenticated
+  useEffect(() => {
+    const checkAuth = async () => {
+      const currentUser = authService.getCurrentUser();
+      if (!currentUser && !clerkUser) {
+        // Small delay to ensure everything is loaded
+        setTimeout(() => {
+          openSignIn();
+        }, 1500);
+      }
+    };
+    checkAuth();
+  }, [clerkUser, openSignIn]);
+  const [view, setView] = useState<'home' | 'discover' | 'library' | 'profile' | 'sports' | 'travel' | 'predict'>('home');
   const [user, setUser] = useState<User | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]); // Default to Grok 2.0
   const [selectedMode, setSelectedMode] = useState<SearchModeType>('web');
@@ -62,22 +79,6 @@ export default function App() {
   // Title state
   const [chatTitle, setChatTitle] = useState('New Chat');
   const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
-
-  // Sync view with URL
-  useEffect(() => {
-    const syncViewWithUrl = () => {
-      const path = window.location.pathname;
-      if (path === '/discover') setView('discover');
-      else if (path === '/library') setView('library');
-      else if (path === '/domains') setView('domains');
-      else if (path === '/profile') setView('profile');
-      else setView('home');
-    };
-
-    syncViewWithUrl();
-    window.addEventListener('popstate', syncViewWithUrl);
-    return () => window.removeEventListener('popstate', syncViewWithUrl);
-  }, []);
 
   useEffect(() => { setUser(authService.getCurrentUser()); }, []);
   
@@ -107,6 +108,9 @@ export default function App() {
       }
 
       // If searching from specialized views, switch to home view to show chat results
+      if (view === 'sports' || view === 'travel') {
+          setView('home');
+      }
       handleSearch(q, selectedModel.id, selectedMode);
       setQuery('');
   };
@@ -132,75 +136,28 @@ export default function App() {
       return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  const firstUserMsg = messages.find(m => m.role === 'user');
+  const searchInputRecord = {
+      searchInput: firstUserMsg?.content || chatTitle,
+      created_at: new Date() 
+  };
+
   return (
     <SidebarProvider>
       <div className="flex h-screen w-full bg-background text-foreground font-sans selection:bg-[#1c7483]/20 overflow-hidden">
-        <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
         <SubscriptionModal isOpen={isProModalOpen} onClose={() => setIsProModalOpen(false)} />
         
         <AppSidebar onNewChat={handleNewChat} />
 
         <main className="flex-1 flex flex-col min-w-0 relative h-full bg-background transition-all duration-300">
-             {HAS_CLERK_KEY && (
-               <header className="absolute top-4 right-4 z-50 flex items-center gap-4">
-                  <SignedOut>
-                    <div className="flex items-center gap-2">
-                      <SignInButton mode="modal">
-                        <button className="px-4 py-2 bg-foreground text-background rounded-full text-sm font-medium hover:opacity-90 transition-opacity">Sign In</button>
-                      </SignInButton>
-                      <SignUpButton mode="modal">
-                        <button className="px-4 py-2 bg-foreground text-background border border-border rounded-full text-sm font-medium hover:opacity-90 transition-opacity">Sign Up</button>
-                      </SignUpButton>
-                    </div>
-                  </SignedOut>
-                  <SignedIn>
-                    <UserButton afterSignOutUrl="/" />
-                  </SignedIn>
-               </header>
-             )}
+             {/* Auth Buttons removed as requested - UserButton is now in the Header component */}
              
              {/* Header - Only visible when searched or in specific views, NOT in sports/travel view */}
              {hasSearched && view === 'home' && (
-                 <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md border-b border-transparent">
-                     <div className="flex items-center justify-between px-4 py-2 h-14">
-                         <div className="flex items-center gap-3 min-w-0 flex-1">
-                             <SidebarTrigger className="md:hidden -ml-2" />
-                             {/* Title Dropdown */}
-                           <div className="relative">
-                               <button 
-                                onClick={() => setIsTitleMenuOpen(!isTitleMenuOpen)}
-                                className="flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-surface-hover transition-colors max-w-[200px] sm:max-w-md"
-                               >
-                                   <span className="text-sm font-medium truncate">{chatTitle}</span>
-                                   <ChevronDown className="w-3.5 h-3.5 text-muted" />
-                               </button>
-
-                               {isTitleMenuOpen && (
-                                   <>
-                                     <div className="fixed inset-0 z-40" onClick={() => setIsTitleMenuOpen(false)} />
-                                     <div className="absolute top-full left-0 mt-1 w-48 bg-popover border border-border rounded-lg shadow-lg z-50 py-1 bg-surface animate-in fade-in zoom-in-95 duration-100">
-                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-surface-hover text-left">
-                                             <Pencil className="w-4 h-4" /> Edit title
-                                         </button>
-                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-surface-hover text-left">
-                                             <ShareIcon className="w-4 h-4" /> Share
-                                         </button>
-                                         <div className="h-px bg-border my-1" />
-                                         <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 text-left">
-                                             <Trash2 className="w-4 h-4" /> Delete
-                                         </button>
-                                     </div>
-                                   </>
-                               )}
-                           </div>
-                       </div>
-                       
-                       <div className="flex items-center gap-2">
-                            {/* Right side actions if needed */}
-                       </div>
-                   </div>
-               </div>
-           )}
+                 <div className="sticky top-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-md">
+                     <Header searchInputRecord={searchInputRecord} />
+                 </div>
+             )}
 
            {/* View Content */}
            {view === 'home' && (
@@ -236,13 +193,14 @@ export default function App() {
                   </div>
                 ) : (
                   <>
+                    <DisplayResult searchInputRecord={searchInputRecord} />
                     <div className="flex-1 overflow-y-auto pb-40 pt-4 px-0 scroll-smooth scrollbar-thin scrollbar-thumb-border hover:scrollbar-thumb-muted">
                         <div className="flex flex-col w-full"> 
-                        {messages.map((msg, idx) => ( 
+                        {messages.filter(m => m.role !== 'user').map((msg, idx) => ( 
                             <MessageItem 
                                 key={idx} 
                                 msg={msg} 
-                                isLast={idx === messages.length - 1} 
+                                isLast={idx === messages.filter(m => m.role !== 'user').length - 1} 
                                 isLoading={isLoading} 
                                 onShare={() => {}} 
                                 onRewrite={onSearch} 
@@ -267,7 +225,27 @@ export default function App() {
            
            {view === 'discover' && <Discover onBack={() => setView('home')} />}
            {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); setView('home'); }); }} />}
-           {view === 'domains' && <DomainSettings />}
+           {view === 'sports' && (
+              <Sports 
+                onSearch={onSearch} 
+                query={query} 
+                setQuery={setQuery}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+                models={MODELS}
+              />
+           )}
+           {view === 'travel' && (
+              <Travel
+                onSearch={onSearch} 
+                query={query} 
+                setQuery={setQuery}
+                selectedModel={selectedModel}
+                setSelectedModel={setSelectedModel}
+                models={MODELS}
+              />
+           )}
+           {view === 'predict' && <PredictionPage />}
            {view === 'profile' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                  <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mb-8 border border-border shadow-sm">
@@ -291,7 +269,7 @@ export default function App() {
                          <button onClick={() => { authService.signOut(); window.location.reload(); }} className="w-full py-2 bg-surface-hover hover:bg-border rounded-lg text-sm font-medium transition-colors">Sign Out</button>
                      </div>
                  ) : (
-                     <button onClick={() => setIsAuthModalOpen(true)} className="px-6 py-2 bg-foreground text-background rounded-full font-medium">Sign In</button>
+                     <button onClick={() => openSignIn()} className="px-6 py-2 bg-foreground text-background rounded-full font-medium">Sign In</button>
                  )}
               </div>
            )}

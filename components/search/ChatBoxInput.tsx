@@ -1,5 +1,7 @@
-import { Plus, ChevronDown, ArrowUp } from 'lucide-react';
+import { ArrowUp, Atom, Globe, Mic, Paperclip, Cpu, Search, AudioLines } from 'lucide-react';
 import React, { useRef } from 'react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 
 interface InputBarProps {
   query: string;
@@ -18,11 +20,7 @@ export const ChatBoxInput: React.FC<InputBarProps> = ({
 
     return (
         <div className={`w-full ${isInitial ? 'max-w-[800px]' : 'max-w-3xl'} mx-auto relative z-30 px-4 pb-8`}>
-            <div className={`flex items-center gap-2 p-2 w-full border border-gray-200 rounded-full bg-white shadow-lg transition-all duration-300 hover:border-gray-300`}>
-                <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                    <Plus className="w-5 h-5" />
-                </button>
-                
+            <div className="flex flex-col w-full bg-surface border border-border rounded-2xl shadow-elegant transition-all duration-300 hover:border-scira-accent/30 p-3">
                 <textarea
                     ref={textareaRef}
                     value={query}
@@ -33,23 +31,54 @@ export const ChatBoxInput: React.FC<InputBarProps> = ({
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
                     placeholder="Ask anything..."
-                    className='flex-1 outline-none bg-transparent resize-none text-foreground py-2 text-sm placeholder:text-gray-400'
+                    className='w-full outline-none bg-transparent resize-none text-foreground py-2 px-3 text-base placeholder:text-muted/50'
                     rows={1}
                 />
 
-                <div className="flex items-center gap-2 pr-1">
-                    <button className="flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-xs font-medium text-gray-500">
-                        <span>Model</span>
-                        <ChevronDown className="w-3 h-3" />
-                    </button>
-                    
-                    <button 
-                        onClick={() => handleSearch()} 
-                        className={`p-2 rounded-full transition-all ${query.trim() ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}
-                        disabled={!query.trim()}
-                    >
-                        <ArrowUp className='h-4 w-4'/>
-                    </button>
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-2 px-2">
+                    <div className="flex items-center gap-1">
+                        <Tabs defaultValue="Search" className="w-fit">
+                            <TabsList variant="line" className="h-8 p-0 bg-transparent border-none">
+                                <TabsTrigger 
+                                    value="Search" 
+                                    className="data-[state=active]:text-scira-accent data-[state=active]:bg-scira-accent/5 px-3 py-1 rounded-full text-xs flex items-center gap-1.5 transition-all"
+                                > 
+                                    <Search className="w-3.5 h-3.5" /> Search
+                                </TabsTrigger>
+                                <TabsTrigger 
+                                    value="Research" 
+                                    className="data-[state=active]:text-scira-accent data-[state=active]:bg-scira-accent/5 px-3 py-1 rounded-full text-xs flex items-center gap-1.5 transition-all"
+                                > 
+                                    <Atom className="w-3.5 h-3.5" /> Research
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+                    </div>
+
+                    <div className='flex gap-3 items-center'>
+                        <div className="flex items-center gap-2 mr-2 border-r border-border pr-3">
+                            <Cpu className='text-muted hover:text-scira-accent h-4 w-4 cursor-pointer transition-colors'/>
+                            <Globe className='text-muted hover:text-scira-accent h-4 w-4 cursor-pointer transition-colors'/>
+                            <Paperclip className='text-muted hover:text-scira-accent h-4 w-4 cursor-pointer transition-colors'/>
+                            <Mic className='text-muted hover:text-scira-accent h-4 w-4 cursor-pointer transition-colors'/>
+                        </div>
+                        
+                        <Button 
+                            size="icon-sm" 
+                            variant="ghost" 
+                            className="rounded-full bg-scira-accent hover:bg-scira-accent-hover text-white"
+                        >
+                            <AudioLines className='h-4 w-4'/>
+                        </Button>
+
+                        <button 
+                            onClick={() => handleSearch()} 
+                            className={`p-1.5 rounded-full transition-all ${query.trim() ? 'bg-scira-accent text-white shadow-glow' : 'bg-muted/10 text-muted cursor-not-allowed'}`}
+                            disabled={!query.trim()}
+                        >
+                            <ArrowUp className='h-4 w-4'/>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

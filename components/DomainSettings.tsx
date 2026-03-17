@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Globe, CheckCircle2, XCircle, Copy, ExternalLink, ShieldCheck, Mail, Key } from 'lucide-react';
+import { Globe, CheckCircle2, XCircle, Copy, ExternalLink, ShieldCheck, Mail, Key, CircleDashed } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface DNSRecord {

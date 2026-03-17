@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Share2, RotateCcw, Copy, Check, Loader2, Search, Globe, CircleDashed, ArrowRight, AlignLeft, ArrowUpRight, Download, RefreshCcw } from 'lucide-react';
+import { Share2, RotateCcw, Copy, Check, Loader2, Search, Globe, CircleDashed, ArrowRight, AlignLeft } from 'lucide-react';
 import { Message } from '../../types';
 import { Thinking } from '../Thinking';
 import { MessageContent } from '../MessageContent';
@@ -18,10 +18,10 @@ interface MessageItemProps {
 export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading, onShare, onRewrite }) => {
   if (msg.role === 'user') {
     return (
-      <div className="w-full max-w-3xl mx-auto py-4 px-4 flex justify-end animate-fade-in">
-          <div className="bg-gray-100 text-foreground px-4 py-2 rounded-full text-sm font-medium">
+      <div className="w-full max-w-3xl mx-auto pt-10 pb-6 px-4 animate-fade-in">
+          <h1 className="text-[32px] font-medium text-foreground tracking-tight leading-tight font-sans">
             {msg.content}
-          </div>
+          </h1>
        </div>
     );
   }
@@ -47,10 +47,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
 
         {/* Answer Section */}
         <div className="min-h-[20px] animate-in fade-in slide-in-from-bottom-3 duration-700">
-           <div className="flex items-center gap-2 mb-3">
-              <AlignLeft className="w-5 h-5 text-gray-500" />
-              <span className="text-lg font-medium text-foreground font-sans">Answer</span>
-            </div>
           
           {/* Reasoning / Thinking Block */}
           {msg.reasoning && (
@@ -63,23 +59,23 @@ export const MessageItem: React.FC<MessageItemProps> = ({ msg, isLast, isLoading
                 <div className="h-4 bg-gray-200 rounded w-1/2 animate-pulse"></div>
              </div>
           ) : (
-            <div className="w-full font-serif text-lg leading-relaxed">
+            <div className="w-full">
               <MessageContent content={msg.content} isStreaming={isLast && isLoading} sources={msg.sources} />
               
               {!isLoading && msg.content && (
-                <div className="mt-6 flex items-center gap-4">
-                    <button className="text-muted hover:text-foreground transition-colors">
-                        <ArrowUpRight className="w-4 h-4" />
-                    </button>
-                    <button className="text-muted hover:text-foreground transition-colors">
-                        <Download className="w-4 h-4" />
-                    </button>
-                    <button onClick={handleCopy} className="text-muted hover:text-foreground transition-colors">
-                        {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
-                    </button>
-                    <button onClick={() => onRewrite(msg.content)} className="text-muted hover:text-foreground transition-colors">
-                        <RefreshCcw className="w-4 h-4" />
-                    </button>
+                <div className="mt-6 flex items-center justify-between">
+                   <div className="flex items-center gap-2">
+                      <button onClick={onShare} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-hover border border-border/50 text-muted hover:text-primary transition-colors text-xs font-medium">
+                         <Share2 className="w-3.5 h-3.5" /> Share
+                      </button>
+                      <button onClick={() => onRewrite(msg.content)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-hover border border-border/50 text-muted hover:text-primary transition-colors text-xs font-medium">
+                         <RotateCcw className="w-3.5 h-3.5" /> Rewrite
+                      </button>
+                      <button onClick={handleCopy} className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface hover:bg-surface-hover border border-border/50 text-muted hover:text-primary transition-colors text-xs font-medium">
+                         {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                         {copied ? 'Copied' : 'Copy'}
+                      </button>
+                   </div>
                 </div>
               )}
             </div>
