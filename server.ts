@@ -2,6 +2,10 @@ import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
+import dns from "dns";
+import { promisify } from "util";
+
+const resolveCname = promisify(dns.resolveCname);
 
 dotenv.config();
 
@@ -223,6 +227,21 @@ async function startServer() {
       res.status(response.status).json(data);
     } catch (error: any) {
       res.status(500).json({ error: error.message });
+    }
+  });
+
+  // DNS Verification Proxy
+  app.get("/api/dns/verify", async (req, res) => {
+    const { domain, expected } = req.query;
+    if (!domain || !expected) return res.status(400).json({ error: "Missing domain or expected value" });
+
+    try {
+      const records = await resolveCname(domain as string);
+      const isVerified = records.some(r => r.toLowerCase() === (expected as string).toLowerCase());
+      res.json({ verified: isVerified, records });
+    } catch (error: any) {
+      // If record not found, it's not verified
+      res.json({ verified: false, error: error.code === 'ENODATA' || error.code === 'ENOTFOUND' ? "Record not found" : error.message });
     }
   });
 

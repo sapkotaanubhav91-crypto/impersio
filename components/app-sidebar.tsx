@@ -12,7 +12,7 @@ import {
   SidebarMenuButton,
 } from "@/components/ui/sidebar"
 import { SignedIn, SignedOut, SignInButton, UserButton } from '@clerk/clerk-react';
-import { Compass, GalleryHorizontalEnd, Search, Command } from 'lucide-react'
+import { Compass, GalleryHorizontalEnd, Search, Command, Globe } from 'lucide-react'
 
 const MenuOptions = [
     {
@@ -29,6 +29,11 @@ const MenuOptions = [
         title: 'Library',
         icon: GalleryHorizontalEnd,
         path: '/library'
+    },
+    {
+        title: 'Domains',
+        icon: Globe,
+        path: '/domains'
     }
 ]
 
@@ -66,11 +71,19 @@ export function AppSidebar({ onNewChat }: { onNewChat?: () => void }) {
                     <SidebarMenu>
                         {MenuOptions.map((menu, index) => (
                             <SidebarMenuItem key={index}>
-                                <SidebarMenuButton asChild size="lg" className={`p-5 py-6 hover:bg-transparent hover:font-bold ${path === menu.path ? 'font-bold' : ''}`}>
-                                    <a href={menu.path}>
+                                <SidebarMenuButton 
+                                    asChild 
+                                    size="lg" 
+                                    className={`p-5 py-6 hover:bg-transparent hover:font-bold ${path === menu.path ? 'font-bold bg-surface-hover' : ''}`}
+                                >
+                                    <button onClick={(e) => {
+                                        e.preventDefault();
+                                        window.history.pushState({}, '', menu.path);
+                                        window.dispatchEvent(new PopStateEvent('popstate'));
+                                    }}>
                                         <menu.icon className='h-7 w-7' />
                                         <span className='text-lg'>{menu.title}</span>
-                                    </a>
+                                    </button>
                                 </SidebarMenuButton>
                             </SidebarMenuItem>
                         ))}

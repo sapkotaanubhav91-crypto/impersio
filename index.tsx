@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { ClerkProvider } from '@clerk/clerk-react';
+import { BrowserRouter } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import './index.css';
 import App from './App';
@@ -17,13 +18,15 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ErrorBoundary>
-      {PUBLISHABLE_KEY ? (
-        <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+      <BrowserRouter>
+        {PUBLISHABLE_KEY ? (
+          <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
+            <App />
+          </ClerkProvider>
+        ) : (
           <App />
-        </ClerkProvider>
-      ) : (
-        <App />
-      )}
+        )}
+      </BrowserRouter>
     </ErrorBoundary>
   </React.StrictMode>
 );

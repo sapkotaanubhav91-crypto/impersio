@@ -1,8 +1,5 @@
-import { Atom, Globe, Mic, Paperclip, Search, Cpu, ArrowUp, SearchCheck } from 'lucide-react';
-import React, { useRef, useState, useEffect } from 'react';
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { ModelOption, SearchModeType } from '../../types';
+import { Plus, ChevronDown, ArrowUp } from 'lucide-react';
+import React, { useRef } from 'react';
 
 interface InputBarProps {
   query: string;
@@ -18,48 +15,41 @@ export const ChatBoxInput: React.FC<InputBarProps> = ({
   isInitial,
 }) => {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const [placeholder, setPlaceholder] = useState('Ask Anything');
 
     return (
-        <div className={`w-full ${isInitial ? 'max-w-[800px]' : 'max-w-3xl'} mx-auto relative z-30 px-4`}>
-            <div className={`p-4 w-full border dark:border-black rounded-2xl bg-white dark:bg-white/5`}>
+        <div className={`w-full ${isInitial ? 'max-w-[800px]' : 'max-w-3xl'} mx-auto relative z-30 px-4 pb-8`}>
+            <div className={`flex items-center gap-2 p-2 w-full border border-gray-200 rounded-full bg-white shadow-lg transition-all duration-300 hover:border-gray-300`}>
+                <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+                    <Plus className="w-5 h-5" />
+                </button>
+                
                 <textarea
                     ref={textareaRef}
                     value={query}
                     onChange={(e) => {
                         setQuery(e.target.value);
                         e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
+                        e.target.style.height = Math.min(e.target.scrollHeight, 200) + 'px';
                     }}
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); } }}
-                    placeholder={placeholder}
-                    className='w-full outline-none bg-transparent resize-none text-foreground'
-                    rows={2}
+                    placeholder="Ask anything..."
+                    className='flex-1 outline-none bg-transparent resize-none text-foreground py-2 text-sm placeholder:text-gray-400'
+                    rows={1}
                 />
-                <div className='flex justify-between items-center mt-2'>
-                    {/* Left Side: Tabs */}
-                    <div className='flex items-center gap-2'>
-                        <Tabs defaultValue="Search">
-                            <TabsList className="bg-gray-100 dark:bg-[#1c1c1c] p-1 rounded-xl">
-                                <TabsTrigger value="Search" className='text-[#1c7483] data-[state=active]:text-[#1c7483] rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:shadow-sm dark:data-[state=active]:shadow-none'>
-                                    <SearchCheck className="w-4 h-4 mr-2" /> Search
-                                </TabsTrigger>
-                                <TabsTrigger value="Research" className='text-[#1c7483] data-[state=active]:text-[#1c7483] rounded-lg data-[state=active]:bg-white dark:data-[state=active]:bg-black data-[state=active]:shadow-sm dark:data-[state=active]:shadow-none'>
-                                    <Atom className="w-4 h-4 mr-2" /> Research
-                                </TabsTrigger>
-                            </TabsList>
-                        </Tabs>
-                    </div>
-                    {/* Right Side: Icons and Action Button */}
-                    <div className='flex gap-1 items-center'>
-                        <Button variant='ghost' className='text-foreground p-2'><Cpu className='h-5 w-5'/></Button>
-                        <Button variant='ghost' className='text-foreground p-2'><Globe className='h-5 w-5'/></Button>
-                        <Button variant='ghost' className='text-foreground p-2'><Paperclip className='h-5 w-5'/></Button>
-                        <Button variant='ghost' className='text-foreground p-2'><Mic className='h-5 w-5'/></Button>
-                        <Button onClick={() => handleSearch()} className="bg-foreground hover:bg-foreground/90 p-2 text-background rounded-xl" disabled={!query.trim()}>
-                            <ArrowUp className='h-5 w-5'/>
-                        </Button>
-                    </div>
+
+                <div className="flex items-center gap-2 pr-1">
+                    <button className="flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-gray-100 transition-colors text-xs font-medium text-gray-500">
+                        <span>Model</span>
+                        <ChevronDown className="w-3 h-3" />
+                    </button>
+                    
+                    <button 
+                        onClick={() => handleSearch()} 
+                        className={`p-2 rounded-full transition-all ${query.trim() ? 'bg-black text-white' : 'bg-gray-100 text-gray-400'}`}
+                        disabled={!query.trim()}
+                    >
+                        <ArrowUp className='h-4 w-4'/>
+                    </button>
                 </div>
             </div>
         </div>

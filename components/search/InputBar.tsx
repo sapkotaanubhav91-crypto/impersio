@@ -122,7 +122,7 @@ export const InputBar: React.FC<InputBarProps> = ({
                     trigger={
                         <button className="flex items-center gap-1.5 px-3 py-1.5 text-gray-500 hover:bg-gray-200 dark:hover:bg-[#3A3A3A] rounded-full text-sm font-medium transition-colors">
                             <Cpu className="w-4 h-4" />
-                            {selectedModel.name}
+                            {selectedModel?.name}
                             <ChevronDown className="w-3 h-3 opacity-50" />
                         </button>
                     }

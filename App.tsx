@@ -17,9 +17,7 @@ import { MessageItem } from './components/chat/MessageItem';
 import { ChatBoxInput } from './components/search/ChatBoxInput';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
 import { AppSidebar } from './components/app-sidebar';
-import { Sports } from './components/Sports';
-import { Travel } from './components/Travel';
-import { PredictionPage } from './components/PredictionPage';
+import { DomainSettings } from './components/DomainSettings';
 
 const HAS_CLERK_KEY = !!(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_ZnVubnktbW9ua2V5LTU5LmNsZXJrLmFjY291bnRzLmRldiQ');
 
@@ -55,7 +53,7 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
-  const [view, setView] = useState<'home' | 'discover' | 'library' | 'profile' | 'sports' | 'travel' | 'predict'>('home');
+  const [view, setView] = useState<'home' | 'discover' | 'library' | 'profile' | 'domains'>('home');
   const [user, setUser] = useState<User | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]); // Default to Grok 2.0
   const [selectedMode, setSelectedMode] = useState<SearchModeType>('web');
@@ -64,6 +62,22 @@ export default function App() {
   // Title state
   const [chatTitle, setChatTitle] = useState('New Chat');
   const [isTitleMenuOpen, setIsTitleMenuOpen] = useState(false);
+
+  // Sync view with URL
+  useEffect(() => {
+    const syncViewWithUrl = () => {
+      const path = window.location.pathname;
+      if (path === '/discover') setView('discover');
+      else if (path === '/library') setView('library');
+      else if (path === '/domains') setView('domains');
+      else if (path === '/profile') setView('profile');
+      else setView('home');
+    };
+
+    syncViewWithUrl();
+    window.addEventListener('popstate', syncViewWithUrl);
+    return () => window.removeEventListener('popstate', syncViewWithUrl);
+  }, []);
 
   useEffect(() => { setUser(authService.getCurrentUser()); }, []);
   
@@ -93,9 +107,6 @@ export default function App() {
       }
 
       // If searching from specialized views, switch to home view to show chat results
-      if (view === 'sports' || view === 'travel') {
-          setView('home');
-      }
       handleSearch(q, selectedModel.id, selectedMode);
       setQuery('');
   };
@@ -256,27 +267,7 @@ export default function App() {
            
            {view === 'discover' && <Discover onBack={() => setView('home')} />}
            {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); setView('home'); }); }} />}
-           {view === 'sports' && (
-              <Sports 
-                onSearch={onSearch} 
-                query={query} 
-                setQuery={setQuery}
-                selectedModel={selectedModel}
-                setSelectedModel={setSelectedModel}
-                models={MODELS}
-              />
-           )}
-           {view === 'travel' && (
-              <Travel
-                onSearch={onSearch} 
-                query={query} 
-                setQuery={setQuery}
-                selectedModel={selectedModel}
-                setSelectedModel={setSelectedModel}
-                models={MODELS}
-              />
-           )}
-           {view === 'predict' && <PredictionPage />}
+           {view === 'domains' && <DomainSettings />}
            {view === 'profile' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                  <div className="w-20 h-20 rounded-full bg-surface flex items-center justify-center mb-8 border border-border shadow-sm">
