@@ -28,7 +28,8 @@
     "react-router-dom": "^7.13.1",
     "recharts": "^2.12.0",
     "remark-gfm": "^3.0.1",
-    "tailwind-merge": "^2.6.1"
+    "tailwind-merge": "^2.6.1",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.2.0",
@@ -37,6 +38,7 @@
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@types/react-router-dom": "^5.3.3",
+    "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.2.1",
     "shadcn": "^3.8.5",
     "tailwindcss": "^4.2.0",
