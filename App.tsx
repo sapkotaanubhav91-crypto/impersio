@@ -4,8 +4,8 @@ import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton, useUser, u
 import { authService } from '@/services/authService';
 import { User, ModelOption, SearchModeType } from '@/types';
 import { saveToLibrary } from '@/services/libraryService';
-import { Discover } from '@/components/Discover';
-import { Library } from '@/components/Library';
+import { Discover } from '@/components/Discover.tsx';
+import { Library } from '@/components/Library.tsx';
 import { useTheme } from '@/hooks/useTheme';
 import { getConversationMessages } from '@/services/chatStorageService';
 import { MetaIcon, GeminiIcon, ImpersioLogo } from '@/components/Icons';
@@ -15,12 +15,12 @@ import { useUserSync } from '@/hooks/useUserSync';
 import { MessageItem } from '@/components/chat/MessageItem';
 import { ChatBoxInput } from '@/components/search/ChatBoxInput';
 import { SidebarProvider, SidebarTrigger } from '@/components/ui/sidebar';
-import { AppSidebar } from '@/components/app-sidebar';
-import { Sports } from '@/components/Sports';
-import { Travel } from '@/components/Travel';
-import { PredictionPage } from '@/components/PredictionPage';
-import Header from '@/components/Header';
-import DisplayResult from '@/components/DisplayResult';
+import { AppSidebar } from '@/components/app-sidebar.tsx';
+import { Sports } from '@/components/Sports.tsx';
+import { Travel } from '@/components/Travel.tsx';
+import { PredictionPage } from '@/components/PredictionPage.tsx';
+import Header from '@/components/Header.tsx';
+import DisplayResult from '@/components/DisplayResult.tsx';
 
 const HAS_CLERK_KEY = !!(import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || 'pk_test_ZnVubnktbW9ua2V5LTU5LmNsZXJrLmFjY291bnRzLmRldiQ');
 
