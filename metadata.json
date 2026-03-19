@@ -1,6 +1,6 @@
 {
-  "name": "Impersio",
-  "description": "An agentic search platform with Web, Academic, Deep Research, and Scraping modes, powered by Gemini, Exa, Firecrawl, and Valyu.",
+  "name": "Perplexity Clone",
+  "description": "A clean, refactored Perplexity-style search interface focused on core functionality.",
   "requestFramePermissions": [
     "microphone"
   ]
