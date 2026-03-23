@@ -1,8 +1,8 @@
-import { LucideImage, LucideList, LucideSparkles, LucideVideo, ChevronRight, Share, Download, Copy, RotateCw, ThumbsUp, ThumbsDown, MoreHorizontal, CornerDownRight } from 'lucide-react';
+import { LucideImage, LucideList, LucideSparkles, LucideVideo, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 
-export function DisplayResult({ searchInputRecord, images, videos, sources, answer, isFinished, followUps = [] }: any) {
+export function DisplayResult({ searchInputRecord, images, videos, sources, answer }: any) {
     const [activeTab, setActiveTab] = useState('Answer');
 
     const tabs = [
@@ -112,36 +112,6 @@ export function DisplayResult({ searchInputRecord, images, videos, sources, answ
                         {answer && (
                             <div className="markdown-body prose dark:prose-invert max-w-none text-[15px] leading-relaxed text-gray-800">
                                 <Markdown>{answer}</Markdown>
-                            </div>
-                        )}
-
-                        {/* Toolbar and Follow-ups */}
-                        {isFinished && (
-                            <div className="mt-8 pt-6 border-t border-gray-100">
-                                <div className="flex items-center justify-between mb-6 text-gray-400">
-                                    <div className="flex items-center gap-4">
-                                        <Share className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <Download className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <Copy className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <RotateCw className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <ThumbsUp className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <ThumbsDown className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <MoreHorizontal className="w-4 h-4 cursor-pointer hover:text-black" />
-                                    </div>
-                                    <div className="flex items-center gap-1 text-xs">
-                                        <img src="https://www.google.com/s2/favicons?domain=openai.com&sz=32" alt="" className="w-4 h-4" />
-                                        <span>10 sources</span>
-                                    </div>
-                                </div>
-                                
-                                <div className="space-y-3">
-                                    {followUps.map((q: string, idx: number) => (
-                                        <div key={idx} className="flex items-center gap-3 text-gray-700 hover:text-black cursor-pointer group">
-                                            <CornerDownRight className="w-4 h-4 text-gray-400 group-hover:text-black" />
-                                            <span className="text-sm">{q}</span>
-                                        </div>
-                                    ))}
-                                </div>
                             </div>
                         )}
                     </div>
