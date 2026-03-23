@@ -1,11 +1,12 @@
 export default function ChatBoxLogo({ className }: { className?: string }) {
-  const src = 'https://lh3.googleusercontent.com/rd-gg/AMW1TPp_HxKiH9C8t760AxwPfo-G-LipzukDk0i0BBCge481yL92WmAD33qia1iJ9tr1SbDOq8Chgg0TyN1E4b0gwa4mmHgwvDyrcU05XtnL5SV2q_HsgV3cLa-1uYoz1w3gRsHZuSR2i_ix-BhOfOAwlKrNW8v8fRHNv-YLleJS-BhwN_MqlAvtgYOQbL6COGAUvJVxd_o6vKNKIbEXUTLy-OjIQv9PWGRPGRPv4A_BVYyq0UYK4nEiRz6fPhpI-hwnI0qZ-3h-Q1A5YAqtu7yI60UnRlX7RSjFD-MmYzo5t6F7TTSyVnHCJYaLZCR6IUMOTb0FYQLWntoCGbGnfdZpRu5QAkg4c8lIxtiXC-jzJZEYyTPTzmdXBc1OxRcsfYF8Sf_rHcpCY4swUmXEeuOJbsELbKz9eRLFb2hj9ENTDAwO69PVH6UbektUGSUtYDIiE1lXGqCIvbC-IMW46dXhkZLr7bSHTtd9CXvNVZ_xmQENIzwiLSTO3Owyh0KvUGBNr3eqeJMuGt9GNRd6MAEU9UUDM7IUEOmDdfdPCnelbfMA96IaraKthetIFVyciMCcLqnDTePwhqeMacyNtAQ98mHxOYrXpdBO9gYSpbQozlLZliBtQ2LbfphnELbxHjfJgLNbBAQsFLX53UqWrYTQM8evNVs5UI9eRgDjDoJ00AuAknej8kT8e9OKrrYzco7QKPb5QE6b_OjKlO6ZmXyv4uJq5c8cr756Ywzt6hcFOq3mResy1JIWFcp6YU1vLuPG1XkUIacOi-DYKfGpCdnXYYX1HmE6uDmIlhqAwHTxrfjZRWFZFCmaDPnfUL4t2tILZNbbZ4f-mU0WS8zvRljnGI_iodCCRUPVJOed06RtivzBmZmFmaivPmTcdNPIZt0dYMtYSpbkUjczmGdEh-MtGfGHmqx75357k8Rg9T80QmzC3S2bw9-vW_z_l-eJO3zCqc2Zd6enqlmR7ucDzd0cAMt-CkIzdkV8B0eAiuveFvb0IVcdZ-Zk7gMhI4k3cErn4KD9c_u6dZdrmLDQ18CHLGyksA0_qK2mcNvTM4WrFEJIdqVAX2SYWBHyrw1J6tz_5RRsjxJt8L_FkHwyoHfUbtjgCcj-k_uojO4iBJtq_8rVyL6R1fqXJBdCKbmseCjCnzNSilyVAuCcMVKcrT7Zr8_H03lJJwjqbziw7K-U2jH07sgQBfl33nRIeTOgkjR7kasKsqNVUsLuBELyL9dY55gzp3deEfYPT9nJFWfzlrX2AjPzUjk1Z153z4HZd3BehAt95e9jOu199Gbm7rncCvTyAiAg0bpxii90rWPmfsqIKKpPN07-DcaADCdqpjFAurz8h7usryjoqYjXr0iAy40OWmWgrCOCzThefgXJcdH5Q3dATMA2EAXVHob_qMKZbGJQ3KTRYc43r-EXT-8TyzqK1lG0qU=s1600-rj?authuser=1';
+  const src = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Perplexity_AI_logo.svg';
     
   return (
     <img 
       src={src} 
       alt="ChatBox Logo" 
       className={className || "h-14"} 
+      referrerPolicy="no-referrer"
     />
   );
 }
