@@ -1,7 +1,5 @@
 export default function ImpersioLogo({ className, variant = 'full' }: { className?: string, variant?: 'text' | 'full' }) {
-  const src = variant === 'text' 
-    ? 'https://storage.googleapis.com/static.ai.studio/build/18435368877/input_file_0.png'
-    : 'https://storage.googleapis.com/static.ai.studio/build/18435368877/input_file_1.png';
+  const src = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Perplexity_AI_logo.svg';
     
   return (
     <img 

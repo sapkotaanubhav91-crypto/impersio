@@ -52,7 +52,7 @@ if (isSignedIn) {
 return (
 <Sidebar className='bg-[#eff0eb] dark:bg-accent border-r-0'>
 <SidebarHeader className="py-6 bg-[#eff0eb] dark:bg-accent flex items-center justify-center">
-  <ImpersioLogo variant="full" className="h-12 w-auto" />
+  <ImpersioLogo variant="full" className="h-10 w-auto" />
 </SidebarHeader>
 <SidebarContent className='bg-[#eff0eb] dark:bg-accent'>
 <SidebarGroup>

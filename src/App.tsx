@@ -155,7 +155,7 @@ export default function App() {
 
                         <div className="w-full max-w-3xl flex flex-col items-center justify-center animate-fade-in relative z-10">
                             <div className="mb-8">
-                                <ImpersioLogo variant="text" className="h-24 w-auto" />
+                                <ImpersioLogo variant="full" className="h-16 w-auto" />
                             </div>
                             
                             <ChatBoxInput 
