@@ -1,4 +1,5 @@
 export default function ImpersioLogo({ className, variant = 'full' }: { className?: string, variant?: 'text' | 'full' }) {
+  // Force rebuild
   const src = 'https://upload.wikimedia.org/wikipedia/commons/1/1d/Perplexity_AI_logo.svg';
     
   return (
