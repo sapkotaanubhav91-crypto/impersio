@@ -3,7 +3,7 @@ import { ChevronDown, Plus } from 'lucide-react';
 import { useUser, useClerk, UserButton } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
-import { User, ModelOption, SearchModeType } from '@/types';
+import { User, ModelOption } from '@/types';
 import { saveToLibrary } from '@/services/libraryService';
 import { Discover } from '@/components/Discover.tsx';
 import { Library } from '@/components/Library.tsx';
@@ -42,6 +42,7 @@ export default function App() {
   } = useChat();
   
   const [query, setQuery] = useState('');
+  const [image, setImage] = useState<string | null>(null);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
 
   // Prompt sign in on mount if not authenticated
@@ -66,7 +67,12 @@ export default function App() {
 
   const [user, setUser] = useState<User | null>(null);
   const [selectedModel, setSelectedModel] = useState<ModelOption>(MODELS[0]);
-  const [selectedMode, setSelectedMode] = useState<SearchModeType>('web');
+  const [searchModes, setSearchModes] = useState({
+    web: true,
+    academic: false,
+    social: false,
+    finance: false
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Title state
@@ -90,16 +96,17 @@ export default function App() {
 
   const onSearch = (overrideQuery?: string) => {
       const q = overrideQuery || query;
-      if (!q.trim()) return;
+      if (!q.trim() && !image) return;
 
       const email = clerkUser?.primaryEmailAddress?.emailAddress;
       if (email) {
-          const type = (selectedMode === 'extreme' || selectedMode === 'academic') ? 'research' : 'search';
+          const type = (searchModes.academic) ? 'research' : 'search';
           saveToLibrary(q, email, type).catch(err => console.error('Failed to save to library:', err));
       }
 
-      handleSearch(q, selectedModel.id, selectedMode);
+      handleSearch(q, selectedModel.id, searchModes, image);
       setQuery('');
+      setImage(null);
   };
 
   const handleNewChat = () => {
@@ -108,7 +115,7 @@ export default function App() {
       setActiveConversationId(null); 
       navigate('/'); 
       setSelectedModel(MODELS[0]);
-      setSelectedMode('web');
+      setSearchModes({ web: true, academic: false, social: false, finance: false });
       setChatTitle('New Chat');
   };
 
@@ -163,6 +170,13 @@ export default function App() {
                                 query={query} 
                                 setQuery={setQuery} 
                                 onSearch={() => onSearch()} 
+                                image={image}
+                                setImage={setImage}
+                                selectedModel={selectedModel}
+                                setSelectedModel={setSelectedModel}
+                                searchModes={searchModes}
+                                setSearchModes={setSearchModes}
+                                models={MODELS}
                             />
 
                        </div>
@@ -192,6 +206,7 @@ export default function App() {
                                 <DisplayResult 
                                     key={idx}
                                     searchInputRecord={{ searchInput: messages[idx - 1]?.content || 'Search' }}
+                                    userImage={messages[idx - 1]?.image}
                                     images={msg.images}
                                     videos={msg.videos}
                                     sources={msg.sources}
@@ -211,6 +226,13 @@ export default function App() {
                                query={query} 
                                setQuery={setQuery} 
                                onSearch={() => onSearch()} 
+                               image={image}
+                               setImage={setImage}
+                               selectedModel={selectedModel}
+                               setSelectedModel={setSelectedModel}
+                               searchModes={searchModes}
+                               setSearchModes={setSearchModes}
+                               models={MODELS}
                            />
                         </div>
                     </div>

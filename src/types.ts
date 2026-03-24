@@ -87,7 +87,9 @@ export type SearchModeType =
   | 'memory' 
   | 'voice' 
   | 'xql'
-  | 'scraping';
+  | 'scraping'
+  | 'finance'
+  | 'social';
 
 export interface Message {
   role: 'user' | 'assistant';

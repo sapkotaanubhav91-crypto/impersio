@@ -2,7 +2,7 @@ import { LucideImage, LucideList, LucideSparkles, LucideVideo, ChevronRight, Sha
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 
-export function DisplayResult({ searchInputRecord, images, videos, sources, answer, isFinished, followUps = [] }: any) {
+export function DisplayResult({ searchInputRecord, userImage, images, videos, sources, answer, isFinished, followUps = [] }: any) {
     const [activeTab, setActiveTab] = useState('Answer');
 
     const tabs = [
@@ -22,7 +22,12 @@ export function DisplayResult({ searchInputRecord, images, videos, sources, answ
 
     return (
         <div className='mt-7 px-4 max-w-3xl mx-auto w-full'>
-            <h2 className='font-medium text-3xl line-clamp-2 mb-8'>{searchInputRecord?.searchInput}</h2>
+            <div className="mb-8">
+                {userImage && (
+                    <img src={userImage} alt="User Upload" className="h-32 w-auto object-cover rounded-xl border border-border mb-4 shadow-sm" />
+                )}
+                <h2 className='font-medium text-3xl line-clamp-2'>{searchInputRecord?.searchInput}</h2>
+            </div>
             
             <div className="flex items-center justify-between border-b border-gray-200 pb-2 mb-6">
                 <div className="flex items-center space-x-6">

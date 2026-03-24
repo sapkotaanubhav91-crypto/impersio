@@ -19,27 +19,31 @@ export const useChat = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
 
-  const saveMessage = async (role: string, content: string, conversationId: string | null) => {
+  const saveMessage = async (role: string, content: string, conversationId: string | null, image?: string | null) => {
     const userId = auth.currentUser?.uid;
     if (!userId || !conversationId) return;
     
     const messagesRef = collection(db, 'users', userId, 'conversations', conversationId, 'messages');
-    await addDoc(messagesRef, {
+    const msgData: any = {
       role,
       content,
       timestamp: serverTimestamp()
-    });
+    };
+    if (image) {
+      msgData.image = image;
+    }
+    await addDoc(messagesRef, msgData);
   };
 
-  const handleSearch = async (query: string, modelId: string, _mode: string) => {
+  const handleSearch = async (query: string, modelId: string, searchModes: { web: boolean, academic: boolean, social: boolean, finance: boolean }, image?: string | null) => {
     setHasSearched(true);
-    const newMessages = [...messages, { role: 'user', content: query }];
+    const newMessages = [...messages, { role: 'user', content: query, image }];
     setMessages([...newMessages, { role: 'assistant', content: '', sources: [], images: [], videos: [] }]);
     setIsLoading(true);
 
     // Save user message
     if (activeConversationId) {
-        await saveMessage('user', query, activeConversationId);
+        await saveMessage('user', query, activeConversationId, image);
     }
 
     try {
@@ -76,6 +80,25 @@ export const useChat = () => {
           searchQueries = [query];
         }
       }
+
+      // Apply mode-specific filters to the queries
+      let finalQueries: string[] = [];
+      
+      if (searchModes.web || Object.values(searchModes).every(v => !v)) {
+        finalQueries.push(...searchQueries);
+      }
+      if (searchModes.academic) {
+        finalQueries.push(...searchQueries.map(q => `${q} site:edu OR site:scholar.google.com OR site:researchgate.net OR site:arxiv.org`));
+      }
+      if (searchModes.social) {
+        finalQueries.push(...searchQueries.map(q => `${q} site:reddit.com OR site:facebook.com OR site:twitter.com`));
+      }
+      if (searchModes.finance) {
+        finalQueries.push(...searchQueries.map(q => `${q} site:sec.gov OR site:finance.yahoo.com OR site:bloomberg.com`));
+      }
+
+      // Deduplicate and limit to 4 queries max to avoid rate limits
+      searchQueries = Array.from(new Set(finalQueries)).slice(0, 4);
 
       // Run Tavily and Serper searches in parallel for maximum speed
       const searchTasks: Promise<void>[] = [];
@@ -380,21 +403,40 @@ Always use tools to gather verified information before responding, and cite ever
       const messagesWithContext = [
         { role: 'system', content: systemPrompt },
         ...newMessages.map((m, i) => {
+          let finalContent: any = m.content;
           if (i === newMessages.length - 1 && searchContext) {
-            return { role: m.role, content: `${m.content}\n\nContext from web search: ${searchContext}` };
+            finalContent = `${m.content}\n\nContext from web search: ${searchContext}`;
           }
-          return { role: m.role, content: m.content };
+          
+          if (m.image) {
+            return {
+              role: m.role,
+              content: [
+                { type: 'text', text: finalContent },
+                { type: 'image_url', image_url: { url: m.image } }
+              ]
+            };
+          }
+          
+          return { role: m.role, content: finalContent };
         })
       ];
 
       let responseContent = '';
       
-      const isGroq = modelId === 'moonshotai/kimi-k2-instruct-0905' || modelId === 'openai/gpt-oss-120b';
-      const isOpenRouter = modelId === 'nvidia/nemotron-3-super-120b-a12b:free';
+      // If there's an image anywhere in the conversation, we MUST use a vision model.
+      let finalModelId = modelId;
+      const hasImageInHistory = newMessages.some(m => m.image);
+      if (hasImageInHistory) {
+        finalModelId = 'moonshotai/kimi-k2-instruct-0905'; // Kimi K2 vision model
+      }
+      
+      const isGroq = finalModelId === 'moonshotai/kimi-k2-instruct-0905' || finalModelId === 'openai/gpt-oss-120b' || finalModelId === 'llama-3.2-90b-vision-preview';
+      const isOpenRouter = finalModelId === 'nvidia/nemotron-3-super-120b-a12b:free';
       
       if (isGroq) {
         const stream = await groq.chat.completions.create({
-          model: modelId,
+          model: finalModelId,
           messages: messagesWithContext,
           temperature: 1,
           max_completion_tokens: 8192,
@@ -421,7 +463,7 @@ Always use tools to gather verified information before responding, and cite ever
       } else if (isOpenRouter) {
         const stream = await openrouter.chat.send({
           chatGenerationParams: {
-            model: modelId,
+            model: finalModelId,
             messages: messagesWithContext,
             stream: true,
           }
