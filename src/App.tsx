@@ -163,11 +163,6 @@ export default function App() {
                                 query={query} 
                                 setQuery={setQuery} 
                                 onSearch={() => onSearch()} 
-                                selectedMode={selectedMode}
-                                setSelectedMode={setSelectedMode}
-                                models={MODELS}
-                                selectedModel={selectedModel}
-                                setSelectedModel={setSelectedModel}
                             />
 
                        </div>
@@ -216,12 +211,6 @@ export default function App() {
                                query={query} 
                                setQuery={setQuery} 
                                onSearch={() => onSearch()} 
-                               selectedMode={selectedMode}
-                               setSelectedMode={setSelectedMode}
-                               models={MODELS}
-                               selectedModel={selectedModel}
-                               setSelectedModel={setSelectedModel}
-                               isChatView={true}
                            />
                         </div>
                     </div>

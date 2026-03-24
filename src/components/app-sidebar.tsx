@@ -46,7 +46,7 @@ return (
   <img 
     src="https://upload.wikimedia.org/wikipedia/commons/1/1d/Perplexity_AI_logo.svg"
     alt="New Sidebar Logo"
-    className="h-20 w-auto"
+    className="h-10 w-auto"
     referrerPolicy="no-referrer"
   />
 </SidebarHeader>

@@ -49,85 +49,141 @@ export const useChat = () => {
       let videos: any[] = [];
       let searchContext = '';
 
-      // Perform Tavily Search
-      if (import.meta.env.VITE_TAVILY_API_KEY && !['hi', 'hello', 'how are you', 'who are you', 'who created you', 'what is your name'].includes(query.toLowerCase().trim())) {
-        try {
-          const tavilyResponse = await fetch('https://api.tavily.com/search', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              api_key: import.meta.env.VITE_TAVILY_API_KEY,
-              query: query,
-              include_images: true,
-              search_depth: 'advanced',
-              max_results: 10,
-            })
-          });
-          const tavilyData = await tavilyResponse.json();
-          if (tavilyData.results) {
-            sources = tavilyData.results.map((r: any) => ({
-              title: r.title,
-              link: r.url,
-              snippet: r.content,
-              displayLink: new URL(r.url).hostname,
-              type: 'web'
-            }));
-            searchContext += `\n\nWeb Search Results:\n${tavilyData.results.map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${r.content}`).join('\n\n')}`;
-          }
-          if (tavilyData.images) {
-            images = tavilyData.images.map((img: string) => ({
-              title: 'Image',
-              link: img,
-              image: img,
-              snippet: '',
-              displayLink: '',
-              type: 'web'
-            }));
-          }
-        } catch (e) {
-          console.error("Tavily search error:", e);
+      let searchQueries: string[] = [];
+      
+      try {
+        const queryGenResponse = await groq.chat.completions.create({
+          model: 'llama-3.1-8b-instant', // Switched to a much faster model for query generation
+          messages: [
+            {
+              role: 'system',
+              content: 'You are an AI that determines if a user query requires web search. If it does not (e.g., greetings, conversational chat, simple math, basic general knowledge), return {"queries": []}. If it requires web search (e.g., current events, comparisons, specific facts, complex topics), return a JSON object with a "queries" array containing 1 to 3 optimized search queries. For comparisons, generate separate queries for each item being compared. ONLY return the JSON object.'
+            },
+            {
+              role: 'user',
+              content: query
+            }
+          ],
+          temperature: 0.1,
+          response_format: { type: 'json_object' }
+        });
+        const parsed = JSON.parse(queryGenResponse.choices[0].message.content || '{"queries": []}');
+        searchQueries = parsed.queries || [];
+      } catch (e) {
+        console.error("Query generation error:", e);
+        // Fallback to the original query if generation fails, unless it's a basic greeting
+        if (!['hi', 'hello', 'how are you', 'who are you', 'who created you', 'what is your name'].includes(query.toLowerCase().trim())) {
+          searchQueries = [query];
         }
+      }
+
+      // Run Tavily and Serper searches in parallel for maximum speed
+      const searchTasks: Promise<void>[] = [];
+
+      // Perform Tavily Search
+      if (import.meta.env.VITE_TAVILY_API_KEY && searchQueries.length > 0) {
+        searchTasks.push((async () => {
+          try {
+            const searchPromises = searchQueries.map(async (sq) => {
+              const tavilyResponse = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  api_key: import.meta.env.VITE_TAVILY_API_KEY,
+                  query: sq,
+                  include_images: true,
+                  search_depth: 'basic', // Changed to basic for faster response
+                  max_results: 3, // Reduced to 3 for faster response and less context bloat
+                })
+              });
+              return tavilyResponse.json();
+            });
+
+            const tavilyResults = await Promise.all(searchPromises);
+            
+            tavilyResults.forEach((tavilyData) => {
+              if (tavilyData.results) {
+                const newSources = tavilyData.results.map((r: any) => ({
+                  title: r.title,
+                  link: r.url,
+                  snippet: r.content,
+                  displayLink: new URL(r.url).hostname,
+                  type: 'web'
+                }));
+                // Filter out duplicates based on URL
+                newSources.forEach((ns: any) => {
+                  if (!sources.some(s => s.link === ns.link)) {
+                    sources.push(ns);
+                  }
+                });
+                searchContext += `\n\nWeb Search Results:\n${tavilyData.results.map((r: any) => `Title: ${r.title}\nURL: ${r.url}\nContent: ${r.content}`).join('\n\n')}`;
+              }
+              if (tavilyData.images) {
+                const newImages = tavilyData.images.map((img: string) => ({
+                  title: 'Image',
+                  link: img,
+                  image: img,
+                  snippet: '',
+                  displayLink: '',
+                  type: 'web'
+                }));
+                newImages.forEach((ni: any) => {
+                  if (!images.some(i => i.link === ni.link)) {
+                    images.push(ni);
+                  }
+                });
+              }
+            });
+          } catch (e) {
+            console.error("Tavily search error:", e);
+          }
+        })());
       }
 
       // Perform Serper.dev Video Search
-      if (import.meta.env.VITE_SERPER_API_KEY && !['hi', 'hello', 'how are you', 'who are you', 'who created you', 'what is your name'].includes(query.toLowerCase().trim())) {
-        try {
-          const serperResponse = await fetch('https://google.serper.dev/videos', {
-            method: 'POST',
-            headers: {
-              'X-API-KEY': import.meta.env.VITE_SERPER_API_KEY,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ q: query, num: 10 })
-          });
-          const serperData = await serperResponse.json();
-          if (serperData.videos) {
-            videos = serperData.videos.map((v: any) => ({
-              title: v.title,
-              link: v.link,
-              snippet: v.snippet,
-              displayLink: v.source || (v.link ? new URL(v.link).hostname : 'Video'),
-              image: v.imageUrl,
-              type: 'video'
-            }));
+      if (import.meta.env.VITE_SERPER_API_KEY && searchQueries.length > 0) {
+        searchTasks.push((async () => {
+          try {
+            const serperResponse = await fetch('https://google.serper.dev/videos', {
+              method: 'POST',
+              headers: {
+                'X-API-KEY': import.meta.env.VITE_SERPER_API_KEY,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ q: searchQueries[0], num: 3 }) // Reduced to 3 for faster response
+            });
+            const serperData = await serperResponse.json();
+            if (serperData.videos) {
+              videos = serperData.videos.map((v: any) => ({
+                title: v.title,
+                link: v.link,
+                snippet: v.snippet,
+                displayLink: v.source || (v.link ? new URL(v.link).hostname : 'Video'),
+                image: v.imageUrl,
+                type: 'video'
+              }));
 
-            // Find a YouTube video and add to sources for citation
-            const youtubeVideo = videos.find(v => v.link.includes('youtube.com') || v.link.includes('youtu.be'));
-            if (youtubeVideo) {
-              sources.push({
-                title: youtubeVideo.title,
-                link: youtubeVideo.link,
-                snippet: youtubeVideo.snippet,
-                displayLink: 'youtube.com',
-                type: 'web'
-              });
-              searchContext += `\n\nYouTube Source:\nTitle: ${youtubeVideo.title}\nURL: ${youtubeVideo.link}\nContent: ${youtubeVideo.snippet}`;
+              // Find a YouTube video and add to sources for citation
+              const youtubeVideo = videos.find(v => v.link.includes('youtube.com') || v.link.includes('youtu.be'));
+              if (youtubeVideo) {
+                sources.push({
+                  title: youtubeVideo.title,
+                  link: youtubeVideo.link,
+                  snippet: youtubeVideo.snippet,
+                  displayLink: 'youtube.com',
+                  type: 'web'
+                });
+                searchContext += `\n\nYouTube Source:\nTitle: ${youtubeVideo.title}\nURL: ${youtubeVideo.link}\nContent: ${youtubeVideo.snippet}`;
+              }
             }
+          } catch (e) {
+            console.error("Serper video search error:", e);
           }
-        } catch (e) {
-          console.error("Serper video search error:", e);
-        }
+        })());
       }
+
+      // Wait for all searches to complete in parallel
+      await Promise.all(searchTasks);
 
       const systemPrompt = modelId === 'moonshotai/kimi-k2-instruct-0905'
         ? `<policy>
