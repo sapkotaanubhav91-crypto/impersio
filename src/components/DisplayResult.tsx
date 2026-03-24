@@ -69,20 +69,20 @@ export function DisplayResult({ searchInputRecord, userImage, images, videos, so
                                         href={source.link} 
                                         target="_blank" 
                                         rel="noopener noreferrer" 
-                                        className="flex flex-col p-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 transition-all group"
+                                        className="flex flex-col p-1.5 rounded-xl border border-gray-100 bg-[#f9faf5] hover:bg-gray-100/80 transition-all group"
                                     >
-                                        <div className="flex items-center gap-2 mb-1.5">
+                                        <div className="flex items-center gap-2 mb-1">
                                             <img 
                                                 src={`https://www.google.com/s2/favicons?domain=${getDomain(source.link)}&sz=64`} 
                                                 alt="" 
-                                                className="w-3.5 h-3.5 rounded-sm"
+                                                className="w-3 h-3 rounded-sm"
                                                 referrerPolicy="no-referrer"
                                             />
-                                            <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider truncate">
+                                            <span className="text-[9px] font-medium text-gray-500 uppercase tracking-wider truncate">
                                                 {getDomain(source.link).split('.')[0]}
                                             </span>
                                         </div>
-                                        <div className="text-[11px] font-medium text-gray-800 line-clamp-1 group-hover:text-black transition-colors">
+                                        <div className="text-[10px] font-medium text-gray-800 line-clamp-1 group-hover:text-black transition-colors">
                                             {source.title}
                                         </div>
                                     </a>
@@ -90,33 +90,56 @@ export function DisplayResult({ searchInputRecord, userImage, images, videos, so
                                 {sources.length > 3 && (
                                     <button 
                                         onClick={() => setActiveTab('Sources')}
-                                        className="flex flex-col p-2.5 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 transition-all group items-start justify-center"
+                                        className="flex flex-col p-1.5 rounded-xl border border-gray-100 bg-[#f9faf5] hover:bg-gray-100/80 transition-all group items-start justify-center"
                                     >
-                                        <div className="flex items-center gap-1.5 mb-1">
-                                            <div className="flex -space-x-1.5">
+                                        <div className="flex items-center gap-1 mb-0.5">
+                                            <div className="flex -space-x-1">
                                                 {sources.slice(3, 5).map((s: any, i: number) => (
                                                     <img 
                                                         key={i}
                                                         src={`https://www.google.com/s2/favicons?domain=${getDomain(s.link)}&sz=32`} 
                                                         alt="" 
-                                                        className="w-3 h-3 rounded-full border border-white bg-white"
+                                                        className="w-2.5 h-2.5 rounded-full border border-white bg-white"
                                                         referrerPolicy="no-referrer"
                                                     />
                                                 ))}
                                             </div>
-                                            <span className="text-[10px] font-bold text-gray-500">
-                                                +{sources.length - 3} sources
+                                            <span className="text-[9px] font-bold text-gray-500">
+                                                +{sources.length - 3}
                                             </span>
                                         </div>
                                     </button>
-                                )}
+                                )}{" "}
                             </div>
                         )}
 
                         {/* Answer Text */}
                         {answer && (
                             <div className="markdown-body prose dark:prose-invert max-w-none text-[15px] leading-relaxed text-gray-800">
-                                <Markdown>{answer}</Markdown>
+                                <Markdown>
+                                    {answer.replace(/\[web:\d+\]/g, '')}
+                                </Markdown>
+                                {sources && answer.match(/\[web:\d+\]/g) && (
+                                    <div className="mt-4 pt-4 border-t border-gray-100 text-sm text-gray-500">
+                                        <span className="font-medium mr-2">Sources:</span>
+                                        {(Array.from(new Set(answer.match(/\[web:\d+\]/g) || [])) as string[]).map((match: string, idx: number) => {
+                                            const index = parseInt(match.match(/\d+/)![0]) - 1;
+                                            const source = sources[index];
+                                            if (!source) return null;
+                                            return (
+                                                <a 
+                                                    key={idx} 
+                                                    href={source.link} 
+                                                    target="_blank" 
+                                                    rel="noopener noreferrer" 
+                                                    className="inline-block mr-2 hover:text-gray-700 underline"
+                                                >
+                                                    {source.title}
+                                                </a>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -186,22 +209,22 @@ export function DisplayResult({ searchInputRecord, userImage, images, videos, so
                 {activeTab === 'Sources' && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 animate-in fade-in duration-500">
                         {sources?.map((source: any, idx: number) => (
-                            <a key={idx} href={source.link} target="_blank" rel="noopener noreferrer" className="block p-4 rounded-xl border border-gray-100 bg-gray-50/50 hover:bg-gray-100/80 transition-all shadow-sm group">
-                                <div className="flex items-center gap-2 mb-2">
+                            <a key={idx} href={source.link} target="_blank" rel="noopener noreferrer" className="block p-2 rounded-xl border border-gray-100 bg-[#f9faf5] hover:bg-gray-100/80 transition-all shadow-sm group">
+                                <div className="flex items-center gap-2 mb-1">
                                     <img 
                                         src={`https://www.google.com/s2/favicons?domain=${getDomain(source.link)}&sz=64`} 
                                         alt="" 
-                                        className="w-4 h-4 rounded-sm"
+                                        className="w-3 h-3 rounded-sm"
                                         referrerPolicy="no-referrer"
                                     />
-                                    <span className="text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    <span className="text-[9px] font-medium text-gray-500 uppercase tracking-wider">
                                         {getDomain(source.link)}
                                     </span>
                                 </div>
-                                <div className="text-sm font-semibold text-gray-900 line-clamp-2 mb-2 group-hover:text-black transition-colors">
+                                <div className="text-[11px] font-semibold text-gray-900 line-clamp-2 mb-1 group-hover:text-black transition-colors">
                                     {source.title}
                                 </div>
-                                <div className="text-xs text-gray-500 line-clamp-2">
+                                <div className="text-[10px] text-gray-500 line-clamp-2">
                                     {source.snippet}
                                 </div>
                             </a>

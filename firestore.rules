@@ -9,6 +9,11 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
+    match /shared_conversations/{conversationId} {
+      allow read: if true;
+      allow write: if isAuthenticated();
+    }
+
     match /users/{userId} {
       allow read, write: if isOwner(userId);
       

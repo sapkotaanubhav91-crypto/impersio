@@ -35,15 +35,16 @@ export const useChat = () => {
     await addDoc(messagesRef, msgData);
   };
 
-  const handleSearch = async (query: string, modelId: string, searchModes: { web: boolean, academic: boolean, social: boolean, finance: boolean }, image?: string | null) => {
+  const handleSearch = async (query: string, modelId: string, searchModes: { web: boolean, academic: boolean, social: boolean, finance: boolean }, image?: string | null, conversationIdOverride?: string | null) => {
+    const currentConversationId = conversationIdOverride || activeConversationId;
     setHasSearched(true);
     const newMessages = [...messages, { role: 'user', content: query, image }];
     setMessages([...newMessages, { role: 'assistant', content: '', sources: [], images: [], videos: [] }]);
     setIsLoading(true);
 
     // Save user message
-    if (activeConversationId) {
-        await saveMessage('user', query, activeConversationId, image);
+    if (currentConversationId) {
+        await saveMessage('user', query, currentConversationId, image);
     }
 
     try {
@@ -457,8 +458,8 @@ Always use tools to gather verified information before responding, and cite ever
             return updated;
           });
         }
-        if (activeConversationId) {
-            await saveMessage('assistant', responseContent, activeConversationId);
+        if (currentConversationId) {
+            await saveMessage('assistant', responseContent, currentConversationId);
         }
       } else if (isOpenRouter) {
         const stream = await openrouter.chat.send({
@@ -482,8 +483,8 @@ Always use tools to gather verified information before responding, and cite ever
             return updated;
           });
         }
-        if (activeConversationId) {
-            await saveMessage('assistant', responseContent, activeConversationId);
+        if (currentConversationId) {
+            await saveMessage('assistant', responseContent, currentConversationId);
         }
       } else {
         // Fallback for other models

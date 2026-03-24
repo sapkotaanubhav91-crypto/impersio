@@ -8,7 +8,7 @@ import { saveToLibrary } from '@/services/libraryService';
 import { Discover } from '@/components/Discover.tsx';
 import { Library } from '@/components/Library.tsx';
 import { useTheme } from '@/hooks/useTheme';
-import { getConversationMessages } from '@/services/chatStorageService';
+import { getConversationMessages, getSharedConversation } from '@/services/chatStorageService';
 import { SubscriptionModal } from '@/components/SubscriptionModal';
 import { useChat } from '@/hooks/useChat';
 import { useUserSync } from '@/hooks/useUserSync';
@@ -17,6 +17,8 @@ import { DisplayResult } from '@/components/DisplayResult.tsx';
 import AppSidebar from '@/components/app-sidebar';
 import ChatBoxInput from '@/components/ChatBoxInput';
 import ChatBoxLogo from '@/components/ChatBoxLogo';
+import { db } from '@/firebase';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 
 // --- Available Models ---
 const MODELS: ModelOption[] = [
@@ -37,6 +39,7 @@ export default function App() {
     hasSearched, 
     setHasSearched, 
     handleSearch, 
+    activeConversationId,
     setActiveConversationId,
     isLoading,
   } = useChat();
@@ -45,21 +48,21 @@ export default function App() {
   const [image, setImage] = useState<string | null>(null);
   const [isProModalOpen, setIsProModalOpen] = useState(false);
 
+  const location = useLocation();
+  const navigate = useNavigate();
+
   // Prompt sign in on mount if not authenticated
   useEffect(() => {
     const checkAuth = async () => {
       const currentUser = authService.getCurrentUser();
-      if (!currentUser && !clerkUser) {
+      if (!currentUser && !clerkUser && !location.pathname.startsWith('/search/')) {
         setTimeout(() => {
           openSignIn();
         }, 1500);
       }
     };
     checkAuth();
-  }, [clerkUser, openSignIn]);
-
-  const location = useLocation();
-  const navigate = useNavigate();
+  }, [clerkUser, openSignIn, location.pathname]);
   
   const view = location.pathname === '/discover' ? 'discover' : 
                location.pathname === '/library' ? 'library' : 
@@ -94,19 +97,84 @@ export default function App() {
      }
   }, [hasSearched, messages]);
 
-  const onSearch = (overrideQuery?: string) => {
+  useEffect(() => {
+    const loadSharedConversation = async () => {
+      if (location.pathname.startsWith('/search/')) {
+        const id = location.pathname.split('/search/')[1];
+        if (id && id !== activeConversationId) {
+          try {
+            // First try to load from user's own conversations
+            let msgs: any[] = [];
+            try {
+              msgs = await getConversationMessages(id);
+            } catch (e) {
+              console.log("Not a user conversation, trying shared...");
+            }
+            if (!msgs || msgs.length === 0) {
+              // If not found, try shared conversations
+              msgs = await getSharedConversation(id);
+            }
+            if (msgs && msgs.length > 0) {
+              setActiveConversationId(id);
+              setMessages(msgs);
+              setHasSearched(true);
+            }
+          } catch (e) {
+            console.error("Failed to load conversation", e);
+          }
+        }
+      }
+    };
+    loadSharedConversation();
+  }, [location.pathname, activeConversationId]);
+
+  const onSearch = async (overrideQuery?: string) => {
       const q = overrideQuery || query;
       if (!q.trim() && !image) return;
 
+      let newConversationId = null;
       const email = clerkUser?.primaryEmailAddress?.emailAddress;
-      if (email) {
+      
+      if (!activeConversationId && email) {
           const type = (searchModes.academic) ? 'research' : 'search';
-          saveToLibrary(q, email, type).catch(err => console.error('Failed to save to library:', err));
+          try {
+              const data = await saveToLibrary(q, email, type);
+              if (data && data.id) {
+                  newConversationId = data.id;
+                  setActiveConversationId(data.id);
+                  // Update URL to reflect the new thread
+                  navigate(`/search/${data.id}`);
+              }
+          } catch (err) {
+              console.error('Failed to save to library:', err);
+          }
       }
 
-      handleSearch(q, selectedModel.id, searchModes, image);
+      handleSearch(q, selectedModel.id, searchModes, image, newConversationId);
       setQuery('');
       setImage(null);
+  };
+
+  const handleShare = async () => {
+      if (!activeConversationId) return;
+      if (!clerkUser && !authService.getCurrentUser()) {
+          alert('Please sign in to share conversations.');
+          openSignIn();
+          return;
+      }
+      try {
+          const sharedRef = doc(db, 'shared_conversations', activeConversationId);
+          await setDoc(sharedRef, {
+              messages: messages,
+              sharedAt: serverTimestamp()
+          });
+          const shareUrl = `${window.location.origin}/search/${activeConversationId}`;
+          await navigator.clipboard.writeText(shareUrl);
+          alert('Link copied to clipboard!');
+      } catch (error) {
+          console.error('Error sharing conversation:', error);
+          alert('Failed to share conversation.');
+      }
   };
 
   const handleNewChat = () => {
@@ -213,6 +281,7 @@ export default function App() {
                                     answer={msg.content}
                                     followUps={msg.followUps}
                                     isFinished={!isLoading}
+                                    onShare={handleShare}
                                 />
                             )
                         ))}
@@ -242,7 +311,7 @@ export default function App() {
            )}
            
            {view === 'discover' && <Discover onBack={() => navigate('/')} />}
-           {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); navigate('/'); }); }} />}
+           {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); navigate(`/search/${id}`); }); }} />}
            
            {view === 'profile' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">

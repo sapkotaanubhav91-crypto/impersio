@@ -12,7 +12,9 @@ export const saveToLibrary = async (query: string, email: string, type: string) 
         type,
         created_at: new Date().toISOString()
       }
-    ]);
+    ])
+    .select()
+    .single();
 
   if (error) {
     console.error('Error saving to Supabase library:', error);
