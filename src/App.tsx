@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useUser, useClerk, UserButton } from '@clerk/clerk-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authService } from '@/services/authService';
@@ -143,7 +144,7 @@ export default function App() {
                   newConversationId = data.id;
                   setActiveConversationId(data.id);
                   // Update URL to reflect the new thread
-                  navigate(`/search/${data.id}`);
+                  window.history.pushState({}, '', '/');
               }
           } catch (err) {
               console.error('Failed to save to library:', err);
@@ -168,7 +169,7 @@ export default function App() {
               messages: messages,
               sharedAt: serverTimestamp()
           });
-          const shareUrl = `${window.location.origin}/search/${activeConversationId}`;
+          const shareUrl = `https://impersio.me/search/${activeConversationId}`;
           await navigator.clipboard.writeText(shareUrl);
           alert('Link copied to clipboard!');
       } catch (error) {
@@ -220,7 +221,10 @@ export default function App() {
               <div className="flex-1 flex flex-col h-full relative overflow-hidden">
                 {!hasSearched ? (
                   <div className="flex-1 flex flex-col items-center justify-center p-4 min-h-[500px]">
-                      <div className="absolute top-4 left-4 z-10">
+                      <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+                          <div className="md:hidden">
+                              <SidebarTrigger />
+                          </div>
                           <UserButton />
                       </div>
                       <div className="md:hidden absolute top-4 right-4 z-10">
@@ -289,7 +293,7 @@ export default function App() {
                         </div>
                     </div>
                     
-                    <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pb-0 pt-10 px-4">
+                    <div className="absolute bottom-0 left-0 right-0 z-20 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 md:pb-6 pt-10 px-4">
                         <div className="max-w-3xl mx-auto w-full">
                            <ChatBoxInput 
                                query={query} 
@@ -311,7 +315,7 @@ export default function App() {
            )}
            
            {view === 'discover' && <Discover onBack={() => navigate('/')} />}
-           {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); navigate(`/search/${id}`); }); }} />}
+           {view === 'library' && <Library onSelectThread={(id) => { setActiveConversationId(id); getConversationMessages(id).then(msgs => { setMessages(msgs); setHasSearched(true); window.history.pushState({}, '', '/'); }); }} />}
            
            {view === 'profile' && (
               <div className="flex-1 flex flex-col items-center justify-center text-center p-12">

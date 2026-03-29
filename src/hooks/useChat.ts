@@ -35,15 +35,17 @@ export const useChat = () => {
     await addDoc(messagesRef, msgData);
   };
 
-  const handleSearch = async (query: string, modelId: string, searchModes: { web: boolean, academic: boolean, social: boolean, finance: boolean }, image?: string | null) => {
+  const handleSearch = async (query: string, modelId: string, searchModes: { web: boolean, academic: boolean, social: boolean, finance: boolean }, image?: string | null, conversationIdOverride?: string | null) => {
     setHasSearched(true);
     const newMessages = [...messages, { role: 'user', content: query, image }];
     setMessages([...newMessages, { role: 'assistant', content: '', sources: [], images: [], videos: [] }]);
     setIsLoading(true);
 
+    const currentConversationId = conversationIdOverride || activeConversationId;
+
     // Save user message
-    if (activeConversationId) {
-        await saveMessage('user', query, activeConversationId, image);
+    if (currentConversationId) {
+        await saveMessage('user', query, currentConversationId, image);
     }
 
     try {
@@ -72,34 +74,41 @@ export const useChat = () => {
           response_format: { type: 'json_object' }
         });
         const parsed = JSON.parse(queryGenResponse.choices[0].message.content || '{"queries": []}');
-        searchQueries = parsed.queries || [];
+        searchQueries = (parsed.queries || []).map((q: string) => `${q} 2026`);
       } catch (e) {
         console.error("Query generation error:", e);
         // Fallback to the original query if generation fails, unless it's a basic greeting
         if (!['hi', 'hello', 'how are you', 'who are you', 'who created you', 'what is your name'].includes(query.toLowerCase().trim())) {
-          searchQueries = [query];
+          searchQueries = [`${query} 2026`];
         }
       }
 
       // Apply mode-specific filters to the queries
-      let finalQueries: { query: string, mode: string }[] = [];
+      let finalQueries: { query: string, mode: string, include_domains?: string[] }[] = [];
+      const allModesOn = searchModes.web && searchModes.academic && searchModes.social && searchModes.finance;
       
-      if (searchModes.web || Object.values(searchModes).every(v => !v)) {
-        finalQueries.push(...searchQueries.map(q => ({ query: q, mode: 'web' })));
-      }
-      if (searchModes.academic) {
-        finalQueries.push(...searchQueries.map(q => ({ query: `${q} site:edu OR site:scholar.google.com OR site:researchgate.net OR site:arxiv.org`, mode: 'academic' })));
-      }
-      if (searchModes.social) {
-        finalQueries.push(...searchQueries.map(q => ({ query: `${q} site:reddit.com OR site:facebook.com OR site:twitter.com`, mode: 'social' })));
-      }
-      if (searchModes.finance) {
-        finalQueries.push(...searchQueries.map(q => ({ query: `${q} site:sec.gov OR site:finance.yahoo.com OR site:bloomberg.com`, mode: 'finance' })));
+      if (allModesOn && searchQueries.length > 0) {
+        finalQueries.push({ query: searchQueries[0], mode: 'web' });
+        finalQueries.push({ query: searchQueries[0], mode: 'academic', include_domains: ['edu', 'scholar.google.com', 'researchgate.net', 'arxiv.org'] });
+        finalQueries.push({ query: searchQueries[0], mode: 'social', include_domains: ['reddit.com', 'facebook.com', 'twitter.com'] });
+        finalQueries.push({ query: searchQueries[0], mode: 'finance', include_domains: ['sec.gov', 'finance.yahoo.com', 'bloomberg.com', 'cnbc.com'] });
+      } else {
+        if (searchModes.web || Object.values(searchModes).every(v => !v)) {
+          finalQueries.push(...searchQueries.map(q => ({ query: q, mode: 'web' })));
+        }
+        if (searchModes.academic) {
+          finalQueries.push(...searchQueries.map(q => ({ query: q, mode: 'academic', include_domains: ['edu', 'scholar.google.com', 'researchgate.net', 'arxiv.org'] })));
+        }
+        if (searchModes.social) {
+          finalQueries.push(...searchQueries.map(q => ({ query: q, mode: 'social', include_domains: ['reddit.com', 'facebook.com', 'twitter.com'] })));
+        }
+        if (searchModes.finance) {
+          finalQueries.push(...searchQueries.map(q => ({ query: q, mode: 'finance', include_domains: ['sec.gov', 'finance.yahoo.com', 'bloomberg.com', 'cnbc.com'] })));
+        }
       }
 
       // Deduplicate and limit to 16 queries max to allow more sources
-      const uniqueQueries = Array.from(new Map(finalQueries.map(item => [item.query, item])).values()).slice(0, 16);
-      const allModesOn = searchModes.web && searchModes.academic && searchModes.social && searchModes.finance;
+      const uniqueQueries = Array.from(new Map(finalQueries.map(item => [`${item.query}-${item.mode}`, item])).values()).slice(0, 16);
 
       // Run Tavily and Serper searches in parallel for maximum speed
       const searchTasks: Promise<void>[] = [];
@@ -109,16 +118,20 @@ export const useChat = () => {
         searchTasks.push((async () => {
           try {
             const searchPromises = uniqueQueries.map(async (qObj) => {
+              const body: any = {
+                api_key: import.meta.env.VITE_TAVILY_API_KEY,
+                query: qObj.query,
+                include_images: true,
+                search_depth: 'advanced', // Changed to advanced to ensure we get enough results
+                max_results: allModesOn ? (qObj.mode === 'web' ? 14 : 2) : 5,
+              };
+              if (qObj.include_domains) {
+                body.include_domains = qObj.include_domains;
+              }
               const tavilyResponse = await fetch('https://api.tavily.com/search', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  api_key: import.meta.env.VITE_TAVILY_API_KEY,
-                  query: qObj.query,
-                  include_images: true,
-                  search_depth: 'basic', // Changed to basic for faster response
-                  max_results: allModesOn ? (qObj.mode === 'web' ? 12 : 2) : 3,
-                })
+                body: JSON.stringify(body)
               });
               return tavilyResponse.json();
             });
@@ -401,6 +414,11 @@ Always use tools to gather verified information before responding, and cite ever
           
           Always synthesize information from the provided search context to create a coherent summary.`;
 
+      // Limit search context length to avoid Groq rate limits
+      if (searchContext.length > 12000) {
+        searchContext = searchContext.substring(0, 12000) + "...";
+      }
+
       const messagesWithContext = [
         { role: 'system', content: systemPrompt },
         ...newMessages.map((m, i) => {
@@ -440,7 +458,7 @@ Always use tools to gather verified information before responding, and cite ever
           model: finalModelId,
           messages: messagesWithContext,
           temperature: 1,
-          max_completion_tokens: 8192,
+          max_completion_tokens: 2048,
           top_p: 1,
           stream: true,
         });
@@ -458,8 +476,8 @@ Always use tools to gather verified information before responding, and cite ever
             return updated;
           });
         }
-        if (activeConversationId) {
-            await saveMessage('assistant', responseContent, activeConversationId);
+        if (currentConversationId) {
+            await saveMessage('assistant', responseContent, currentConversationId);
         }
       } else if (isOpenRouter) {
         const stream = await openrouter.chat.send({
@@ -483,8 +501,8 @@ Always use tools to gather verified information before responding, and cite ever
             return updated;
           });
         }
-        if (activeConversationId) {
-            await saveMessage('assistant', responseContent, activeConversationId);
+        if (currentConversationId) {
+            await saveMessage('assistant', responseContent, currentConversationId);
         }
       } else {
         // Fallback for other models

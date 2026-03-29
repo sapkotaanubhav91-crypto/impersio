@@ -2,7 +2,7 @@ import { LucideImage, LucideList, LucideSparkles, LucideVideo, ChevronRight, Sha
 import { useState } from 'react';
 import Markdown from 'react-markdown';
 
-export function DisplayResult({ searchInputRecord, userImage, images, videos, sources, answer, isFinished, followUps = [] }: any) {
+export function DisplayResult({ searchInputRecord, userImage, images, videos, sources, answer, isFinished, followUps = [], onShare }: any) {
     const [activeTab, setActiveTab] = useState('Answer');
 
     const tabs = [
@@ -145,12 +145,12 @@ export function DisplayResult({ searchInputRecord, userImage, images, videos, so
 
                         {/* Toolbar and Follow-ups */}
                         {isFinished && (
-                            <div className="mt-8 pt-6 border-t border-gray-100">
+                            <div className="mt-4">
                                 <div className="flex items-center justify-between mb-6 text-gray-400">
                                     <div className="flex items-center gap-4">
-                                        <Share className="w-4 h-4 cursor-pointer hover:text-black" />
+                                        <Share className="w-4 h-4 cursor-pointer hover:text-black" onClick={onShare} />
                                         <Download className="w-4 h-4 cursor-pointer hover:text-black" />
-                                        <Copy className="w-4 h-4 cursor-pointer hover:text-black" />
+                                        <Copy className="w-4 h-4 cursor-pointer hover:text-black" onClick={() => navigator.clipboard.writeText(answer)} />
                                         <RotateCw className="w-4 h-4 cursor-pointer hover:text-black" />
                                         <ThumbsUp className="w-4 h-4 cursor-pointer hover:text-black" />
                                         <ThumbsDown className="w-4 h-4 cursor-pointer hover:text-black" />
@@ -158,18 +158,20 @@ export function DisplayResult({ searchInputRecord, userImage, images, videos, so
                                     </div>
                                     <div className="flex items-center gap-1 text-xs">
                                         <img src="https://www.google.com/s2/favicons?domain=openai.com&sz=32" alt="" className="w-4 h-4" />
-                                        <span>10 sources</span>
+                                        <span>{sources?.length || 0} sources</span>
                                     </div>
                                 </div>
                                 
-                                <div className="space-y-3">
-                                    {followUps.map((q: string, idx: number) => (
-                                        <div key={idx} className="flex items-center gap-3 text-gray-700 hover:text-black cursor-pointer group">
-                                            <CornerDownRight className="w-4 h-4 text-gray-400 group-hover:text-black" />
-                                            <span className="text-sm">{q}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                                {followUps && followUps.length > 0 && (
+                                    <div className="space-y-3 pt-4 border-t border-gray-100">
+                                        {followUps.map((q: string, idx: number) => (
+                                            <div key={idx} className="flex items-center gap-3 text-gray-700 hover:text-black cursor-pointer group">
+                                                <CornerDownRight className="w-4 h-4 text-gray-400 group-hover:text-black" />
+                                                <span className="text-sm">{q}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         )}
                     </div>

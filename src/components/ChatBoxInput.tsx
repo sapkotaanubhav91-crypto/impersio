@@ -121,7 +121,7 @@ function ChatBoxInput({
                 )}
                 <input
                     type="text"
-                    placeholder={isListening ? 'Listening...' : 'Ask Anything'}
+                    placeholder={isListening ? 'Listening...' : 'Ask anything. Type @ for mentions.'}
                     className='w-full p-4 outline-none bg-transparent'
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
